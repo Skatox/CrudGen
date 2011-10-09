@@ -31,7 +31,7 @@ CREATE TABLE crudgen.application (
   db_host VARCHAR(255) NOT NULL DEFAULT 'localhost',
   db_name VARCHAR(255) NOT NULL,
   db_schema VARCHAR(255) NOT NULL,
-  db_port SMALLINT NOT NULL DEFAULT 5432,
+  db_port INTEGER NOT NULL DEFAULT 5432,
   auth_method VARCHAR(8) NULL,
   auth_table VARCHAR(255)NULL,
   auth_user_col VARCHAR(255)NULL,
@@ -103,7 +103,6 @@ GRANT USAGE ON SCHEMA crudgen TO crudgen_admin;
 GRANT SELECT,INSERT,UPDATE,DELETE ON 
     crudgen.page_columns,
     crudgen.application,
-    crudgen.operations_security,
     crudgen.page_tables,
     crudgen.pages
     TO crudgen_admin;
@@ -118,12 +117,10 @@ GRANT SELECT,UPDATE ON  crudgen.page_columns_page_column_id_seq TO crudgen_admin
 GRANT SELECT,UPDATE ON  crudgen.application_app_id_seq TO crudgen_admin;
 GRANT SELECT,UPDATE ON  crudgen.pages_page_id_seq TO crudgen_admin;
 GRANT SELECT,UPDATE ON  crudgen.pages_app_id_seq TO crudgen_admin;
-GRANT SELECT,UPDATE ON  crudgen.operations_security_operations_security_id_seq TO crudgen_admin;
-GRANT SELECT,UPDATE ON  crudgen.operations_security_app_id_seq TO crudgen_admin;
 GRANT SELECT,UPDATE ON  crudgen.page_tables_pages_page_id_seq TO crudgen_admin;
 GRANT SELECT,UPDATE ON  crudgen.page_tables_page_tables_id_seq TO crudgen_admin;
 
-CREATE LANGUAGE plpgsql;
+--CREATE LANGUAGE plpgsql;
 --Trigger for protecting modifications to application from other users
 CREATE OR REPLACE FUNCTION check_user() RETURNS trigger AS $application_user_privileges$
   BEGIN
