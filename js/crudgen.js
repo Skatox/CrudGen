@@ -17,3 +17,17 @@ function updateColumns(){
 	document.getElementById('action-input').value='create_app';
 	document.getElementById('createappform').submit();
 }
+
+function checkAllCheckboxes(aId, aChecked) {
+    var collection = document.getElementById(aId).getElementsByTagName('input');
+    for (var x=0; x<collection.length; x++) {
+        if ((collection[x].type.toLowerCase()=='checkbox')&&(collection[x].disabled==false))
+            collection[x].checked = aChecked;
+    }
+}
+
+function goPreviousStep(){
+    var step = document.getElementById('step');
+    step.value= step.value -2;
+    document.getElementById(pagesform).submit();
+}

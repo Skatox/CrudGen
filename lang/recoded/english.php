@@ -40,6 +40,11 @@
     $lang['strmanagepage'] = 'Manage pages';
     $lang['strpagesnotcreated'] = 'Non created pages';
     $lang['strpagescreated'] = 'Created pages';
+    $lang['strpages'] = 'Pages';
+    $lang['strpagecreated'] = 'Pages created.';
+    $lang['strpagenotcreated'] = 'Pages not created.';
+    $lang['straddpage'] = 'Add page';
+    $lang['streditpages'] = 'Edit page';
     
     //Errors
     $lang['strerrnotbl'] = 'Selected schema is empty, you must have some tables to create an application.';

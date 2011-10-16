@@ -513,7 +513,7 @@ class Application {
      * Returns a query of a single application given its id and database
      * @param $database name of the database where are the applications stored
      */
-    public static function getApplication($database, $app_id) {
+    public static function getApplication($app_id) {
         global $data, $misc;
         
         $server_info = $misc->getServerInfo();
@@ -522,18 +522,36 @@ class Application {
                 . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages,"
                 . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id AND p.completed=false) as pages_not_created, "
                 . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id AND p.completed=true) as pages_created "
-                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND db_name='{$database}' AND a.app_id={$app_id} "
+                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND a.app_id={$app_id} "
                 . "ORDER BY a.date_created DESC";
 
         $rs = $driver->selectSet($sql);
         return $rs;
+    }
+    
+    /**
+     * Returns application name from DB
+     * 
+     * @param $database name of the database where are the applications stored
+     */
+    public static function getAppNameFromDB($app_id) {
+        global $data, $misc;
+        
+        $server_info = $misc->getServerInfo();
+        $driver = $misc->getDatabaseAccessor("phppgadmin");
+        $sql =  "SELECT a.app_name "
+                . "FROM crudgen.application a "
+                . "WHERE app_owner='{$server_info["username"]}' "
+                . "AND a.app_id={$app_id} ";
+
+        return $driver->selectField($sql,'app_name');
     }
 
     /**
      * Returns a query of all detected applications for current schema and current user
      * @param $database name of the database where are the applications stored
      */
-    public static function getAppsOfDB($database) {
+    public static function getAppsOfDB($database,$schema) {
         global $data, $misc;
         $server_info = $misc->getServerInfo();
         $driver = $misc->getDatabaseAccessor("phppgadmin");
@@ -541,7 +559,8 @@ class Application {
                 . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages,"
                 . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id AND p.completed=false) as pages_not_created, "
                 . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id AND p.completed=true) as pages_created "
-                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND db_name='{$database}' ORDER BY a.date_created DESC";
+                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND db_name='{$database}' AND db_schema='{$schema}' "
+                . "ORDER BY a.date_created DESC";
 
         $rs = $driver->selectSet($sql);
         return $rs;
