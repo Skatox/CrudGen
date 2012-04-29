@@ -181,7 +181,7 @@ class Fields
 
 		// Creates a new database access object.
 		$driver = $misc->getDatabaseAccessor("phppgadmin");
-		$sql = "INSERT INTO appgen.page_columns (column_name, page_order,on_page,display_name, remote_table,remote_column,page_tables_id) "
+		$sql = "INSERT INTO crudgen.page_columns (column_name, page_order,on_page,display_name, remote_table,remote_column,page_tables_id) "
 		."VALUES ('{$this->field_name}',{$this->field_order},".$this->isOnPageAsString().",'{$this->field_display_name}','{$this->remote_table}','{$this->remote_field}',{$table_id})";
 
 		$rs = $driver->execute($sql);
@@ -201,7 +201,7 @@ class Fields
 		// Creates a new database access object.
 		$driver = $misc->getDatabaseAccessor("phppgadmin");
 		$sql = "SELECT page_column_id,column_name, page_order, on_page, display_name, remote_table,remote_column FROM"
-		." appgen.page_columns WHERE page_tables_id={$table_id} ORDER BY page_order ASC";
+		." crudgen.page_columns WHERE page_tables_id={$table_id} ORDER BY page_order ASC";
 
 		$rs = $driver->selectSet($sql);
 
@@ -228,7 +228,7 @@ class Fields
 
 		// Creates a new database access object.
 		$driver = $misc->getDatabaseAccessor("phppgadmin");
-		$sql = "UPDATE appgen.page_columns SET page_order={$this->field_order},on_page=".$this->isOnPageAsString().",display_name='{$this->field_display_name}',remote_table='{$this->remote_table}',"
+		$sql = "UPDATE crudgen.page_columns SET page_order={$this->field_order},on_page=".$this->isOnPageAsString().",display_name='{$this->field_display_name}',remote_table='{$this->remote_table}',"
 		."remote_column='{$this->remote_field}' WHERE page_column_id={$this->field_id}";
 		$driver->execute($sql);
 	}

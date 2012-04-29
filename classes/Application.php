@@ -69,7 +69,7 @@ class Application {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT app_name FROM appgen.application WHERE app_name='{$app_name}'";
+        $sql = "SELECT app_name FROM crudgen.application WHERE app_name='{$app_name}'";
         $rs = $driver->selectField($sql, "app_name");
 
         if ($rs == -1)
@@ -604,7 +604,7 @@ class Application {
         $rs = $driver->selectSet($sql);
         while (!$rs->EOF) {
             $page = new Pages();
-            $page->load($this->app_id, $rs->fields["page_id"]);
+            $page->load($rs->fields["page_id"]);
             $this->addPage($page);
             $rs->movenext();
         }
@@ -662,6 +662,26 @@ class Application {
         $rs = $driver->execute($sql);
         return ($rs < 0)? false : true;
     }
+    
+    /**
+     * Validates if this app has a unique name
+     */
+    public function hasUniqueName(){
+        global $misc;
+        
+        $driver = $misc->getDatabaseAccessor("phppgadmin");
+        
+        //Validates if it has a unique application name
+        $sql =  "SELECT app_name FROM crudgen.application "
+                . "WHERE app_name='{$this->app_name}' ";
+                
+        if(!empty($this->app_id))
+            $sql .= "AND app_id <> {$this->app_id}";
+         
+        $app_name = $driver->selectField($sql, "app_name");
+        
+        return ($app_name==-1) ? true : false;
+    }
 
     /**
      * Function to store this application object in the database,
@@ -706,7 +726,7 @@ class Application {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT p.page_filename FROM appgen.pages p,appgen.application a "
+        $sql = "SELECT p.page_filename FROM crudgen.pages p, crudgen.application a "
                 . "WHERE a.app_id={$this->app_id} AND p.page_filename='{$page_name}'";
         $rs = $driver->selectField($sql, "page_filename");
 
