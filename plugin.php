@@ -410,10 +410,6 @@ class CrudGen extends Plugin {
         unset($_SESSION["appid"]);
 
         $columns = array(
-            'ID' => array(
-                'title' => $this->lang['strid'],
-                'field' => field('app_id'),
-            ),
             'name' => array(
                 'title' => $lang['strname'],
                 'field' => field('app_name'),
@@ -441,6 +437,11 @@ class CrudGen extends Plugin {
             ),
         );
         $actions = array(
+            'multiactions' => array(
+                'keycols' => array('app_id' => 'app_id'),
+                'url' => $this->build_link('show_apps'),
+                'default' => 'delete'
+            ),
             'wizard' => array(
                 'title' => $this->lang['straddpages'],
                 'url' => $this->build_link('app_wizard'),
@@ -460,6 +461,7 @@ class CrudGen extends Plugin {
                 'title' => $lang['strdelete'],
                 'url' => $this->build_link('delete_app'),
                 'vars' => array('app_id' => 'app_id'),
+                'multiaction' => 'delete_app'
             ),
             'generate' => array(
                 'title' => $this->lang['strgenerate'],
@@ -641,7 +643,7 @@ class CrudGen extends Plugin {
                 $submit_caption = $lang['strcreate'];
 
             echo "<input type=\"submit\" name=\"vacuum\" value=\"{$submit_caption}\" />\n";
-            echo "<input type=\"button\" name=\"cancel\" value=\"{$lang['strcancel']}\" onclick=\"history.back();\" />\n";
+            echo "<input type=\"submit\" name=\"cancel\" value=\"{$lang['strcancel']}\" >\n";
             echo "</p></form>\n";
             echo $this->include_js();
         }
@@ -732,23 +734,58 @@ class CrudGen extends Plugin {
 
         if (!empty($_REQUEST['cancel']))
             return $this->show_apps();
+        
+        if(!isset($_REQUEST["app_id"]) && !isset($_REQUEST['ma'])){
+            $this->show_apps($this->lang['strselapptodelete']);
+            return;
+        }
+
 
         if (!isset($_POST['delete'])) {
             $misc->printHeader($lang['strdatabase']);
             $misc->printBody();
             $misc->printTrail('schema');
             $misc->printTabs('schema', 'crudgen');
+            
+            $delete_text = isset($_REQUEST['ma']) ? $this->lang['strconfdelapps'] : $this->lang['strconfdelapp'];
 
-            echo "\n\t<h2>{$lang['strdelete']}</h2>\n\t<p>{$this->lang['strconfdelapp']}</p>"
-            . "\n\t<form method=\"post\">\n\t\t"
-            . "\n\t\t<input type=\"hidden\" name=\"action\" value=\"delete_app\" />"
-            . "\n\t\t<input type=\"hidden\" name=\"app_id\" value=\"{$_REQUEST["app_id"]}\" />"
-            . "\n\t\t<input type=\"submit\" name=\"delete\" value=\"{$lang['strdelete']}\" />"
-            . "\n\t\t<input type=\"button\" name=\"cancel\" value=\"{$lang['strcancel']}\" onclick=\"history.back();\" />\n\t</form>";
+            echo "\n\t<h2>{$lang['strdelete']}</h2>\n\t<p>{$delete_text}</p>"
+            . "\n\t<form method=\"post\" style=\"float:left; margin-right: 5px;\">\n\t\t"
+            . "\n\t\t<input type=\"hidden\" name=\"action\" value=\"delete_app\" />";
+            
+            //If multi drop
+            if (isset($_REQUEST['ma'])) {
+                foreach ($_REQUEST['ma'] as $a) {
+                    $app = unserialize(htmlspecialchars_decode($a, ENT_QUOTES));
+                    echo '<input type="hidden" name="app_id[]" value="', htmlspecialchars($app['app_id']), "\" />\n";
+                }
+            } else {
+                if(isset($_REQUEST["app_id"]))
+                    echo "\n\t\t<input type=\"hidden\" name=\"app_id\" value=\"{$_REQUEST["app_id"]}\" />";
+            }
+            
+            echo  "\n\t\t<input type=\"submit\" name=\"delete\" value=\"{$lang['strdelete']}\" />"
+                    ."\n\t\t<input type=\"submit\" name=\"cancel\" value=\"{$lang['strcancel']}\"  />\n\t</form>";
 
             $misc->printFooter();
         } else {
-            $msg = (Application::delete($_REQUEST["app_id"])) ? $this->lang['strerrdelapp'] : $this->lang['strdelapp'];
+             if (is_array($_POST['app_id'])) {
+                $flag = 0;
+                
+                foreach ($_POST['app_id'] as $app_id) {
+                    $flag = Application::delete($app_id);
+
+                    if ($flag === 1) {
+                        $msg = $this->lang['strerrdelapp'];
+                        break;
+                    }
+                }
+                if ($flag == 0)
+                    $msg = $this->lang['strdelapps'];
+            }
+            else
+                $msg = (Application::delete($_REQUEST["app_id"])) ? $this->lang['strerrdelapp'] : $this->lang['strdelapp'];
+            
             $this->show_apps($msg);
         }
     }
@@ -1144,6 +1181,11 @@ class CrudGen extends Plugin {
         );
 
         $actions = array(
+            'multiactions' => array(
+                'keycols' => array('page_id' => 'page_id'),
+                'url' => $this->build_link('list_pages', $extra_vars),
+                'default' => 'delete'
+            ),
             'edit' => array(
                 'title' => $lang['stredit'],
                 'url' => $this->build_link('edit_page', $extra_vars),
@@ -1153,6 +1195,7 @@ class CrudGen extends Plugin {
                 'title' => $lang['strdelete'],
                 'url' => $this->build_link('delete_page', $extra_vars),
                 'vars' => array('page_id' => 'page_id'),
+                'multiaction' => 'delete_page',
             ),
         );
 
@@ -1334,6 +1377,9 @@ class CrudGen extends Plugin {
 
     function update_page() {
         global $lang;
+        
+        if (!empty($_REQUEST['cancel']))
+            return $this->list_pages();
 
         $page = new Pages();
 
@@ -1421,6 +1467,11 @@ class CrudGen extends Plugin {
 
         if (!empty($_REQUEST['cancel']))
             return $this->list_pages();
+        
+        if(!isset($_REQUEST["page_id"]) && !isset($_REQUEST['ma'])){
+            $this->list_pages($this->lang['strselpagetodelete']);
+            return;
+        }
 
         if (!isset($_POST['delete'])) {
             $misc->printHeader($lang['strdatabase']);
@@ -1428,18 +1479,45 @@ class CrudGen extends Plugin {
             $misc->printTrail('schema');
             $misc->printTabs('schema', 'crudgen');
 
-            echo "\n\t<h2>{$lang['strdelete']}</h2>\n\t<p>{$this->lang['strdelpage']}</p>"
+            $confirmation_text = isset($_REQUEST['ma']) ? $this->lang['strdelpages'] : $this->lang['strdelpage'];
+
+            echo "\n\t<h2>{$lang['strdelete']}</h2>\n\t<p>{$confirmation_text}</p>"
             . "\n\t<form method=\"post\" style=\"float:left; margin-right: 5px;\">\n\t\t"
-            . "\n\t\t<input type=\"hidden\" name=\"action\" value=\"delete_page\" />"
-            . "\n\t\t<input type=\"hidden\" name=\"page_id\" value=\"{$_REQUEST["page_id"]}\" />"
-            . "\n\t\t<input type=\"submit\" name=\"delete\" value=\"{$lang['strdelete']}\" />"
-            . "\n\t</form>"
-            . "\n\t<form method=\"post\" action=\"{$this->build_link('list_pages', array('app_id' => $_REQUEST['app_id']))}\">\n\t\t"
+            . "\n\t\t<input type=\"hidden\" name=\"action\" value=\"delete_page\" />";
+
+            //If multi drop
+            if (isset($_REQUEST['ma'])) {
+                foreach ($_REQUEST['ma'] as $p) {
+                    $page = unserialize(htmlspecialchars_decode($p, ENT_QUOTES));
+                    echo '<input type="hidden" name="page_id[]" value="', htmlspecialchars($page['page_id']), "\" />\n";
+                }
+            } else {
+                if(isset($_REQUEST["page_id"]))
+                    echo "\n\t\t<input type=\"hidden\" name=\"page_id\" value=\"{$_REQUEST["page_id"]}\" />";
+            }
+
+            echo "\n\t\t<input type=\"submit\" name=\"delete\" value=\"{$lang['strdelete']}\" />"
             . "\n\t\t<input type=\"submit\" name=\"cancel\" value=\"{$lang['strcancel']}\"  />\n\t</form>";
 
             $misc->printFooter();
         } else {
-            $msg = ( Pages::delete($_REQUEST["page_id"]) == 0) ? $this->lang['strdeletedpage'] : $this->lang['strerrdelpage'];
+            if (is_array($_POST['page_id'])) {
+                $flag = 0;
+                
+                foreach ($_POST['page_id'] as $page_id) {
+                    $flag = Pages::delete($page_id);
+
+                    if ($flag === 1) {
+                        $msg = $this->lang['strerrdelpage'];
+                        break;
+                    }
+                }
+                if ($flag == 0)
+                    $msg = $this->lang['strdeletedpages'];
+            }
+            else
+                $msg = ( Pages::delete($_REQUEST["page_id"]) == 0) ? $this->lang['strdeletedpage'] : $this->lang['strerrdelpage'];
+
             $this->list_pages($msg);
         }
     }

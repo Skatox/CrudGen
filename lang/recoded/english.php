@@ -43,7 +43,9 @@
     $lang['strappedited'] = 'Application edited.';
     $lang['strappnotsaved'] = 'Application creation failed.';
     $lang['strconfdelapp'] = 'Do you really want to delete this application?';
+    $lang['strconfdelapps'] = 'Do you really want to delete selected applications?';
     $lang['strdelapp'] = 'Application deleted.';
+    $lang['strdelapps'] = 'Applications deleted.';
     $lang['strerrdelapp'] = 'Application deletion failed.';
     
     //Wizard
@@ -76,7 +78,9 @@
     $lang['strfilename'] = 'Filename';
     $lang['strcompleted'] = 'Completed';
     $lang['strdelpage'] = 'Do you really want to delete this page?';
+    $lang['strdelpages'] = 'Do you really want to delete selected pages?';
     $lang['strdeletedpage'] = 'Page deleted.';
+    $lang['strdeletedpages'] = 'Pages deleted.';
     $lang['strerrdelpage'] = 'Page deletion failed.';
     $lang['strpageinfo'] = 'Page information';
     $lang['strpagetitle'] = 'Title';
@@ -112,5 +116,7 @@
     $lang['strpageerrsavedb'] = 'There was a problem when saving the page into the database.';
     $lang['strnouniquefilename'] = 'There is another page in the application with the same filename.';
     $lang['strerrfielddb'] = 'There was a problem when saving fields into the database';
+    $lang['strselpagetodelete'] = 'Select pages to be deleted';
+    $lang['strselapptodelete'] = 'Select applications to be deleted';
     
 ?>
