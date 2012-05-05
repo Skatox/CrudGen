@@ -48,7 +48,6 @@ CREATE TABLE crudgen.pages (
   date_created DATE  DEFAULT NOW() NOT NULL ,
   operation CHAR   NOT NULL ,
   in_main_menu BOOL  DEFAULT false NOT NULL ,
-  completed BOOL  DEFAULT false NOT NULL ,
   page_text TEXT      ,
 PRIMARY KEY(page_id)  ,
   FOREIGN KEY(app_id)

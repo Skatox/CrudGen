@@ -3,12 +3,12 @@
 class Pages {
     /*     * * Attributes: ** */
 
+    private $app_id;
     private $page_id;
     private $page_filename;
     private $page_title;
     private $operation;
     private $descr;
-    private $completed = false;
     private $date_created;
     private $in_main_menu;
     private $table;
@@ -18,7 +18,6 @@ class Pages {
     public function _construct() {
         global $lang;
         $this->page_title = $lang['strnone'];
-        $this->completed = false;
     }
 
     /**
@@ -218,50 +217,14 @@ class Pages {
     }
 
     /**
-     * Checks if this page was completed or not
-     * @return bool true if this page was completed, otherwise returns false
-     */
-    public function isCompleted() {
-        switch ($this->completed) {
-            case "f": return false;
-            case "t": return true;
-        }
-    }
-
-    /**
      * Set if this page should appear in the application's main menu
      *
      * @param $value boolean value if it should appear or not
      */
     public function setInMainMenu($value) {
-        if ($value)
-            $this->in_main_menu = "t";
-        else
-            $this->in_main_menu = "f";
+        $this->in_main_menu = $value ? "t" : "f";
     }
 
-    /**
-     * Gets first page not completed from current application
-     *
-     * @param $appid current application's database id
-     * @return int with uncompleted page's database id
-     */
-    public function getPageNotcompleted($appid, $page_id = "") {
-        global $misc, $lang;
-        // Creates a new database access object.
-        $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT page_id FROM crudgen.pages WHERE completed=false AND app_id={$appid}";
-        if ($page_id != "")
-            $sql = $sql . " AND page_id={$page_id}";
-        $page_id = $driver->selectField($sql, "page_id");
-
-        if ($page_id < 0) {
-            $misc->printMsg($lang['strnopagescompleted']);
-            echo "\n\t\t<a href=\"tbloperations.php?{$misc->href}\">{$lang['strclicaddpages']}</a>";
-        }
-
-        return $page_id;
-    }
 
     /**
      * This function adds into the DB all fields from this page
@@ -286,8 +249,8 @@ class Pages {
         // Creates a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
 
-        $sql = "INSERT INTO crudgen.page_tables (table_name, pages_page_id) "
-                . " VALUES ('{$this->table}',{$page_id}) RETURNING page_tables_id";
+        $sql = sprintf("INSERT INTO crudgen.page_tables (table_name, pages_page_id) "
+                . " VALUES ('%s',%d) RETURNING page_tables_id",$this->table,$page_id);
 
         return $driver->selectField($sql, "page_tables_id");
     }
@@ -305,8 +268,9 @@ class Pages {
         // Creates a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
 
-        $sql = "INSERT INTO crudgen.pages (page_filename, page_title, operation,page_text,completed,app_id)"
-                . "VALUES ('{$this->page_filename}','{$this->page_title}','" . substr($this->operation, 0, 1) . "','{$this->page_text}',false,{$app_id}) RETURNING page_id";
+        $sql = sprintf("INSERT INTO crudgen.pages (page_filename, page_title, operation,page_text,app_id) "
+                . "VALUES ('%s','%s','" . substr($this->operation, 0, 1) . "','%s', %d) RETURNING page_id",
+                $this->page_filename,$this->page_title,$this->page_text,$app_id);
 
         $this->page_id = $driver->selectField($sql, "page_id");
         return $this->page_id;
@@ -321,19 +285,19 @@ class Pages {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT page_filename, page_title,descr, completed,date_created,operation,in_main_menu,page_text "
-                . "FROM crudgen.pages WHERE page_id={$page_id}";
+        $sql = sprintf("SELECT page_filename, page_title,descr, date_created,operation,in_main_menu,page_text,app_id "
+                . "FROM crudgen.pages WHERE page_id=%d",$page_id);
         $rs = $driver->selectSet($sql);
 
         //Saves page related info in this object
         $this->page_id = $page_id;
+        $this->app_id = $rs->fields['app_id'];
         $this->page_filename = $rs->fields['page_filename'];
         $this->page_title = $rs->fields['page_title'];
         $this->operation = $rs->fields['operation'];
         $this->descr = $rs->fields['descr'];
         $this->date_created = $rs->fields['date_created'];
         $this->in_main_menu = $rs->fields['in_main_menu'];
-        $this->completed = $rs->fields['completed'];
         $this->page_text = $rs->fields['page_text'];
 
         //fix operation variable 'cause DB only stores first character
@@ -349,7 +313,7 @@ class Pages {
         }
 
         //Retreives table's name
-        $sql = "SELECT page_tables_id, table_name FROM crudgen.page_tables WHERE pages_page_id={$page_id}";
+        $sql = sprintf("SELECT page_tables_id, table_name FROM crudgen.page_tables WHERE pages_page_id=%d",$page_id);
         $rs = $driver->selectSet($sql);
         $this->table = $rs->fields['table_name'];
         $table_id = $rs->fields['page_tables_id'];
@@ -369,11 +333,13 @@ class Pages {
 
         // Creates a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "UPDATE crudgen.pages SET page_filename='{$this->page_filename}',page_title='{$this->page_title}',page_text='{$this->page_text}',descr='{$this->descr}',"
-                . "in_main_menu=" . $this->isInMainMenuAsString() . ",completed=true WHERE page_id={$this->page_id}";
+        $sql = sprintf("UPDATE crudgen.pages SET page_filename='%s',page_title='%s', page_text='%s',descr='%s',"
+                . "in_main_menu=" . $this->isInMainMenuAsString() . " WHERE page_id = %d",
+                $this->page_filename,$this->page_title,$this->page_text,$this->descr, $this->page_id);
 
         return $driver->execute($sql);
     }
+
 
     /**
      * This functions deletes this object information in the database
@@ -385,7 +351,7 @@ class Pages {
 
         // Creates a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "DELETE FROM crudgen.pages WHERE page_id={$page_id}";
+        $sql = sprintf("DELETE FROM crudgen.pages WHERE page_id=%d",$page_id);
         return $driver->execute($sql);
     }
 
@@ -420,11 +386,7 @@ class Pages {
         $_POST['page_filename'] = $this->getFilename();
         $_POST["page_descr"] = $this->getDescription();
         $_POST["page_text"] = $this->setPageText();
-
-        if ($this->in_main_menu)
-            $_POST['on_main_menu'] = true;
-        else
-            $_POST['on_main_menu'] = null;
+        $_POST['on_main_menu'] = $this->in_main_menu ? true : null;
     }
 
     /*
@@ -448,23 +410,16 @@ class Pages {
     }
 
     /**
-     * Returns an array of Pages, depending of $completed param returns completed
-     * or uncompleted pages
-     * @param $completed bool for asking if completed or not (true completed pages)
-     * @return Pages array with all pages not completed
+     * Returns an array of Pages
+     * @return Pages array with all pages
      */
-    public static function getPages($completed = 'all') {
+    public static function getPages() {
         $genpages = array();
-        if ($completed !== 'all') {
-            foreach ($this->pages as $page) {
-                if ($page->isCompleted() == $completed)
-                    $genpages[] = $page;
-            }
-            return $genpages;
-        }
-        else
-            foreach ($this->pages as $page)
-                $genpages[] = $page;
+        
+        foreach ($this->pages as $page)
+            $genpages[] = $page;
+
+        return $genpages;
     }
 
     /**
@@ -477,10 +432,10 @@ class Pages {
         $driver = $misc->getDatabaseAccessor("phppgadmin");
         $sql = "SELECT page_id,page_title,date_created,page_filename,"
                 . "CASE WHEN operation='d' THEN '{$lang['strdelete']}' WHEN operation='c' THEN '{$lang['strcreate']}' "
-                . "WHEN operation='u' THEN '{$lang['strupdate']}' ELSE '{$lang['strreport']}' END AS operation, "
-                . "CASE WHEN completed='f' THEN '{$lang['strno']}' ELSE '{$lang['stryes']}' END AS completed "
+                . "WHEN operation='u' THEN '{$lang['strupdate']}' ELSE '{$lang['strreport']}' END AS operation "
                 . "FROM crudgen.pages WHERE app_id={$app_id} ORDER BY operation";
         $rs = $driver->selectSet($sql);
+
         return $rs;
     }
 
@@ -503,7 +458,5 @@ class Pages {
         if (!isset($_POST["page_text"]))
             $_POST["page_text"] = $this->getPageText();
     }
-
 }
-
 ?>
