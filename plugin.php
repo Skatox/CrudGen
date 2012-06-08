@@ -2,7 +2,7 @@
 
 require_once('classes/Plugin.php');
 include_once('plugins/CrudGen/classes/Application.php');
-include_once('plugins/CrudGen/classes/Fields.php');
+include_once('plugins/CrudGen/classes/Columns.php');
 include_once('plugins/CrudGen/classes/Pages.php');
 include_once('plugins/CrudGen/classes/Generator.php');
 include_once('plugins/CrudGen/classes/Theme.php');
@@ -1075,16 +1075,13 @@ class CrudGen extends Plugin {
                                     //Builds page object
                                     $page_obj->setFilename($filename);
                                     $page_obj->setOperation($operation);
-                                    $page_obj->setTitle($this->lang['strnone']);
-                                    $page_obj->setDescription('');
                                     $page_obj->setTable(str_replace("'", "", $table_name));
-                                    $page_obj->setPageText('');
 
                                     foreach ($table as $column) {
                                         //creates a field object
-                                        $field_obj = new Fields();
-                                        $field_obj->setName($column);
-                                        $page_obj->addField($field_obj);
+                                        $field = new Columns();
+                                        $field->setName($column);
+                                        $page_obj->addField($field);
                                     }
 
                                     //Adds a page to application object, then creates a new Page object
@@ -1100,7 +1097,7 @@ class CrudGen extends Plugin {
                                         exit(1);
                                     }
 
-                                    $page_obj->saveFields($table_id);
+                                    $page_obj->saveColumns($table_id);
                                 }
                             }
                         }

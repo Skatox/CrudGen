@@ -19,6 +19,8 @@ class Pages {
         global $lang;
         $this->page_title = $lang['strnone'];
         $this->completed = false;
+        $this->descr = '';
+        $this->page_text = '';
     }
 
     /**
@@ -27,7 +29,7 @@ class Pages {
      * @param $page the field/column to be added to this page object
      * @access public
      */
-    public function addField(Fields $page) {
+    public function addField(Columns $page) {
         $this->fields[] = $page;
     }
 
@@ -95,11 +97,11 @@ class Pages {
      * @return array of string with column's name from this page
      */
     public function getFieldsName() {
-        $field_names = array();
+        $names = array();
         foreach ($this->fields as $field) {
-            $field_names[] = $field->getName();
+            $names[] = $field->getName();
         }
-        return $field_names;
+        return $names;
     }
 
     /**
@@ -268,9 +270,9 @@ class Pages {
      *
      * @param $tables_id wich stores this page's table databases id
      */
-    public function saveFields($table_id) {
-        foreach ($this->fields as $field) {
-            $field->save($table_id);
+    public function saveColumns($table_id) {
+        foreach ($this->fields as $column) {
+            $column->save($table_id);
         }
     }
 
@@ -300,7 +302,6 @@ class Pages {
      */
     public function insert($app_id) {
         global $misc;
-        $columns_id = array();
 
         // Creates a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
@@ -355,7 +356,7 @@ class Pages {
         $table_id = $rs->fields['page_tables_id'];
 
         //Loads all fields from this page
-        $objField = new Fields();
+        $objField = new Columns();
         $this->fields = $objField->load($table_id);
     }
 

@@ -1,17 +1,17 @@
 <?php
 
-class Fields
+class Columns
 {
 	/*** Attributes: ***/
-	private $field_id;
+	private $id;
 
-	private $field_name;
+	private $name;
 
-	private $field_order;
+	private $order;
 
-	private $field_on_page= false;
+	private $on_page = true;
 
-	private $field_display_name;
+	private $display_name;
 
 	private $remote_table;
 
@@ -19,10 +19,10 @@ class Fields
 	/**
 	 * This is the class constructor, initializes some variables
 	 */
-	function Fields(){
-		$this->field_order = -1;
-		$this->field_on_page = false;
-		$this->field_display_name="";
+	function Columns(){
+		$this->order = -1;
+		$this->on_page = true;
+		$this->display_name="";
 		$this->remote_table = "";
 		$this->remote_field = "";
 	}
@@ -43,7 +43,7 @@ class Fields
 			." WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_schema='{$schema}'"
 			." AND tc.table_name='{$table}' AND tc.constraint_name=cc.constraint_name"
 			." AND kc.constraint_name = cc.constraint_name AND kc.table_schema='{$schema}'"
-			." AND kc.table_name='{$table}' AND kc.column_name='{$this->field_name}'";
+			." AND kc.table_name='{$table}' AND kc.column_name='{$this->name}'";
 		
 		return $driver->selectField($sql,"table_name");
 	}
@@ -52,42 +52,42 @@ class Fields
 	 * @return int with this db's id
 	 */
 	function getId(){
-		return $this->field_id;
+		return $this->id;
 	}
 	/**
 	 * Sets this field's database id
 	 * @param $id database's id
 	 */
 	function setId($id){
-		$this->field_id = $id;
+		$this->id = $id;
 	}
 	/**
 	 * Gets the display name of this field
 	 * @return string with display name
 	 */
 	function getDisplayName(){
-		return $this->field_display_name;
+		return $this->display_name;
 	}
 	/**
 	 * Sets the name that will be displayed for this field in the page
 	 * @param $name name to be displayed in the page
 	 */
 	function setDisplayName($name){
-		$this->field_display_name =$name;
+		$this->display_name =$name;
 	}
 	/**
 	 * Get this field name from the db
 	 * @return string with this db's name
 	 */
 	function getName(){
-		return $this->field_name;
+		return $this->name;
 	}
 	/**
 	 * Sets this field db's name
 	 * @param $name name of this field in the database
 	 */
 	function setName($name){
-		$this->field_name=$name;
+		$this->name=$name;
 	}
 	/**
 	 * Gets this field order, this is the order that will this field will
@@ -95,14 +95,14 @@ class Fields
 	 * @return int with this field order
 	 */
 	function getOrder(){
-		return $this->field_order;
+		return $this->order;
 	}
 	/**
 	 * Set this field's display order for the page
 	 * @param $order order of this field in the page
 	 */
 	function setOrder($order){
-		$this->field_order=$order;
+		$this->order=$order;
 	}
 	/**
 	 * If this field is a foreing key, returns foreing column name
@@ -138,27 +138,22 @@ class Fields
 	 * @return false means this field is not a fk
 	 */
 	function isFK(){
-		if($this->remote_field!="") return true;
-		else return false;
+		return $this->remote_field != '' ;
 	}
 	/**
 	 * Checks if this field should be displayed in the page
 	 * @return bool if this field is displayed
 	 */
 	function isOnPage(){
-        if($this->field_on_page=='f') return false;
-        else return true;
+            return $this->on_page != 'f';
 	}
 
 	/**
 	 * Returns if a fields is on a page for storing in the DB
-	 * @return string of $this->field_on_page
+	 * @return string of $this->on_page
 	 */
 	function isOnPageAsString(){
-		if($this->field_on_page)
-		return "true";
-		else
-		return "false";
+		return $this->on_page ? 'true' : 'false';
 	}
 
 	/**
@@ -166,7 +161,7 @@ class Fields
 	 * @param $value bool of this field appearence
 	 */
 	function setOnPage($value){
-		$this->field_on_page = $value;
+		$this->on_page = $value;
 	}
 
 
@@ -182,7 +177,7 @@ class Fields
 		// Creates a new database access object.
 		$driver = $misc->getDatabaseAccessor("phppgadmin");
 		$sql = "INSERT INTO crudgen.page_columns (column_name, page_order,on_page,display_name, remote_table,remote_column,page_tables_id) "
-		."VALUES ('{$this->field_name}',{$this->field_order},".$this->isOnPageAsString().",'{$this->field_display_name}','{$this->remote_table}','{$this->remote_field}',{$table_id})";
+		."VALUES ('{$this->name}',{$this->order},".$this->isOnPageAsString().",'{$this->display_name}','{$this->remote_table}','{$this->remote_field}',{$table_id})";
 
 		$rs = $driver->execute($sql);
 
@@ -190,13 +185,13 @@ class Fields
 	}
 	/**
 	 * Function to load all columns of a specific working table
-	 * @param $field_array an array to store each field object loaded from DB
+	 * @param $array an array to store each field object loaded from DB
 	 * @param $table_id table's database id
-	 * @return nothing, all fields are stored in the $field_array array
+	 * @return nothing, all fields are stored in the $array array
 	 */
 	function load($table_id){
 		global $misc;
-        $field_array= array();
+        $array= array();
         
 		// Creates a new database access object.
 		$driver = $misc->getDatabaseAccessor("phppgadmin");
@@ -206,19 +201,19 @@ class Fields
 		$rs = $driver->selectSet($sql);
 
 		while(!$rs->EOF){
-			$tmpfield = new Fields();
-			$tmpfield->field_id = $rs->fields['page_column_id'];
-			$tmpfield->field_name = $rs->fields['column_name'];
-			$tmpfield->field_order =$rs->fields['page_order'];
-			$tmpfield->field_on_page = $rs->fields['on_page'];
-			$tmpfield->field_display_name = $rs->fields['display_name'];
+			$tmpfield = new Columns();
+			$tmpfield->id = $rs->fields['page_column_id'];
+			$tmpfield->name = $rs->fields['column_name'];
+			$tmpfield->order =$rs->fields['page_order'];
+			$tmpfield->on_page = $rs->fields['on_page'];
+			$tmpfield->display_name = $rs->fields['display_name'];
 			$tmpfield->remote_table= $rs->fields['remote_table'];
 			$tmpfield->remote_field=$rs->fields['remote_column'];
-			$field_array[] = $tmpfield;
+			$array[] = $tmpfield;
 			$rs->moveNext();
 		}
 
-        return $field_array;
+        return $array;
 	}
 	/**
 	 * Updates this object's information stored in the database
@@ -228,8 +223,8 @@ class Fields
 
 		// Creates a new database access object.
 		$driver = $misc->getDatabaseAccessor("phppgadmin");
-		$sql = "UPDATE crudgen.page_columns SET page_order={$this->field_order},on_page=".$this->isOnPageAsString().",display_name='{$this->field_display_name}',remote_table='{$this->remote_table}',"
-		."remote_column='{$this->remote_field}' WHERE page_column_id={$this->field_id}";
+		$sql = "UPDATE crudgen.page_columns SET page_order={$this->order},on_page=".$this->isOnPageAsString().",display_name='{$this->display_name}',remote_table='{$this->remote_table}',"
+		."remote_column='{$this->remote_field}' WHERE page_column_id={$this->id}";
 		$driver->execute($sql);
 	}
 

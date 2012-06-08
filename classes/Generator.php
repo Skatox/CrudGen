@@ -21,20 +21,20 @@ class Generator {
      *  using jQuery's  validation plugin
      *
      *  @param $table_name name of the table to check fields attributes
-     * @param $field_name name of the field to check validation rules
+     * @param $name name of the field to check validation rules
      *  @return html code for the required classes (null string if there are not any)
     */
-    private function generateValidationClasses($table_name, $field_name) {
+    private function generateValidationClasses($table_name, $name) {
         global $data;
         $class_code='';
         $attrs = $data->getTableAttributes($table_name);
 
         while (!$attrs->EOF) {
 
-            if (($attrs->fields['attnotnull'] == 't') && ($attrs->fields['attname'] == $field_name))
+            if (($attrs->fields['attnotnull'] == 't') && ($attrs->fields['attname'] == $name))
                 $class_code.= "required ";
 
-            if (($attrs->fields['type'] == "date") && ($attrs->fields['attname'] == $field_name))
+            if (($attrs->fields['type'] == "date") && ($attrs->fields['attname'] == $name))
                 $class_code .= "date ";
             $attrs->moveNext();
         }
