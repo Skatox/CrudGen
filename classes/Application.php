@@ -10,7 +10,6 @@ class Application {
 
     private $app_id;
     private $app_name;
-    private $app_main_path;
     private $descr;
     private $date_created;
     private $app_owner;
@@ -49,12 +48,7 @@ class Application {
         $success = false;
         foreach ($this->pages as $page) {
             if ($page->getPageID() == $id) {
-                $page->deleteAtDB();
-                $success = unlink($this->app_main_path . $page->getFilename());
-                if ((!$success) && (!$page->isCompleted()))
-                    return true;
-                else
-                    return false;
+                return $page->delete();
             }
         }
         return false;
@@ -69,13 +63,10 @@ class Application {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT app_name FROM crudgen.application WHERE app_name='{$app_name}'";
+        $sql = sprintf("SELECT app_name FROM crudgen.application WHERE app_name='%s'",$app_name);
         $rs = $driver->selectField($sql, "app_name");
 
-        if ($rs == -1)
-            return false;
-        else
-            return true;
+        return !($rs == -1);
     }
 
     /**
@@ -152,6 +143,7 @@ class Application {
     function deleteAppFiles($path=null) {
         if (!$path)
             $path = $this->app_main_path;
+        
         if (!file_exists($path))
             return false;
 
@@ -181,9 +173,9 @@ class Application {
     }
 
     /**
-     * Re-generates all files of this application
+     * Generates all files of this application
      */
-    public function generateAppFiles() {
+    public function generate() {
         global $misc, $lang;
         $gen = new Generator();
         $this->theme->copyThemeFiles($this->theme->getThemeName(), $this->app_main_path);
@@ -466,7 +458,7 @@ class Application {
         $menu_code = "";
 
         foreach ($this->pages as $page) {
-            if (($page->isCompleted()) && ($page->isInMainMenu())) {
+            if ($page->isInMainMenu()) {
                 $menu_code.="\n\techo '<li><a href=\"{$page->getFilename()}\" class=\"menu-link\">";
                 $menu_code.=htmlspecialchars($page->getTitle()) . "</a></li>';";
             }
@@ -518,12 +510,10 @@ class Application {
         
         $server_info = $misc->getServerInfo();
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT a.app_id,a.app_name,a.descr,a.date_created,a.db_schema,a.db_name,"
-                . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages,"
-                . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id AND p.completed=false) as pages_not_created, "
-                . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id AND p.completed=true) as pages_created "
-                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND a.app_id={$app_id} "
-                . "ORDER BY a.date_created DESC";
+        $sql = sprintf("SELECT a.app_id,a.app_name,a.descr,a.date_created,a.db_schema,a.db_name,"
+                . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages "
+                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND a.app_id=%d "
+                . "ORDER BY a.date_created DESC",$app_id);
 
         $rs = $driver->selectSet($sql);
         return $rs;
@@ -539,10 +529,10 @@ class Application {
         
         $server_info = $misc->getServerInfo();
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql =  "SELECT a.app_name "
+        $sql =  sprintf("SELECT a.app_name "
                 . "FROM crudgen.application a "
                 . "WHERE app_owner='{$server_info["username"]}' "
-                . "AND a.app_id={$app_id} ";
+                . "AND a.app_id=%d",$app_id);
 
         return $driver->selectField($sql,'app_name');
     }
@@ -551,18 +541,17 @@ class Application {
      * Returns a query of all detected applications for current schema and current user
      * @param $database name of the database where are the applications stored
      */
-    public static function getAppsOfDB($database,$schema) {
+    public static function getApps($database,$schema) {
         global $data, $misc;
+
         $server_info = $misc->getServerInfo();
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT a.app_id,a.app_name,a.descr,a.date_created,a.db_schema,a.db_name,"
-                . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages,"
-                . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id AND p.completed=false) as pages_not_created, "
-                . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id AND p.completed=true) as pages_created "
-                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND db_name='{$database}' AND db_schema='{$schema}' "
-                . "ORDER BY a.date_created DESC";
-
+        $sql = sprintf("SELECT a.app_id,a.app_name,a.descr,a.date_created,a.db_schema,a.db_name,"
+                . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages "
+                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND db_name='%s' AND db_schema='%s' "
+                . "ORDER BY a.date_created DESC",$database,$schema);
         $rs = $driver->selectSet($sql);
+
         return $rs;
     }
 
@@ -574,10 +563,10 @@ class Application {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT app_name, descr,date_created,app_owner,db_name,db_schema, "
+        $sql = sprintf("SELECT app_name, descr,date_created,app_owner,db_name,db_schema, "
                 . "theme_name, db_user,db_pass, db_host, db_port,auth_method, "
                 . "auth_table,auth_user_col,auth_pass_col "
-                . "FROM crudgen.application WHERE app_id={$app_id}";
+                . "FROM crudgen.application WHERE app_id=%d",$app_id);
         $rs = $driver->selectSet($sql);
 
         //Saves application information in this object
@@ -600,7 +589,7 @@ class Application {
         $this->theme->setThemeName($rs->fields['theme_name']);
 
         //Here it loads the pages of this application
-        $sql = "SELECT page_id FROM crudgen.pages WHERE app_id={$this->app_id}";
+        $sql = sprintf("SELECT page_id FROM crudgen.pages WHERE app_id=%d",$this->app_id);
         $rs = $driver->selectSet($sql);
         while (!$rs->EOF) {
             $page = new Pages();
@@ -621,13 +610,14 @@ class Application {
 
         // Create a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql =  "INSERT INTO crudgen.application (app_name, descr,db_name, "
+        $sql =  sprintf("INSERT INTO crudgen.application (app_name, descr,db_name, "
                 . "db_schema,theme_name,db_user,db_pass, db_host, db_port, "
                 . "auth_method, auth_table,auth_user_col,auth_pass_col) "
-                . "VALUES ('{$this->app_name}','{$this->descr}','{$this->db_name}','"
-                . "{$this->db_schema}','{$this->getThemeName()}','{$this->db_user}','{$this->db_pass}','"
-                . "{$this->db_host}',{$this->db_port},'{$this->auth_method}','{$this->auth_table}',"
-                . "'{$this->auth_user_col}','{$this->auth_pass_col}') RETURNING app_id";
+                . "VALUES ('%s','%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s',"
+                . "'%s','%s') RETURNING app_id", $this->app_name,$this->descr,$this->db_name,
+                $this->db_schema,$this->getThemeName(), $this->db_user,$this->db_pass,
+                $this->db_host,$this->db_port,$this->auth_method,$this->auth_table,
+                $this->auth_user_col,$this->auth_pass_col);
 
         $app_id = $driver->selectField($sql, "app_id");
         $this->app_id = $app_id;
@@ -672,8 +662,8 @@ class Application {
         $driver = $misc->getDatabaseAccessor("phppgadmin");
         
         //Validates if it has a unique application name
-        $sql =  "SELECT app_name FROM crudgen.application "
-                . "WHERE app_name='{$this->app_name}' ";
+        $sql =  sprintf("SELECT app_name FROM crudgen.application "
+                . "WHERE app_name='%s'",$this->app_name);
                 
         if(!empty($this->app_id))
             $sql .= "AND app_id <> {$this->app_id}";
@@ -726,19 +716,17 @@ class Application {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT p.page_filename FROM crudgen.pages p, crudgen.application a "
-                . "WHERE a.app_id={$this->app_id} AND p.page_filename='{$page_name}'";
+        $sql = sprintf("SELECT p.page_filename FROM crudgen.pages p, crudgen.application a "
+                . "WHERE a.app_id=%d AND p.page_filename='%s'",$this->app_id, $page_name);
         $rs = $driver->selectField($sql, "page_filename");
 
         return ($rs == -1) ? false : true;
     }
 
-    /*
+    /**
      * This function checks if 2 pages have the same filename
-     *
      * @param filename the name to check if already exists for this application
      */
-
     public function isUniqueFilename($page_id, $filename) {
         foreach ($this->pages as $page) {
             if (($page->getFilename() == $filename) && ($page->getId() != $page_id))

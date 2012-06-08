@@ -235,6 +235,7 @@ class CrudGen extends Plugin {
             'edit_page',
             'update_page',
             'delete_page',
+            'generate_app',
             'tree'
         );
         return $actions;
@@ -347,14 +348,6 @@ class CrudGen extends Plugin {
                 'title' => $this->lang['strpages'],
                 'field' => field('pages')
             ),
-            'pages_not_created' => array(
-                'title' => $this->lang['strpagenotcreated'],
-                'field' => field('pages_not_created'),
-            ),
-            'pages_created' => array(
-                'title' => $this->lang['strpagecreated'],
-                'field' => field('pages_created'),
-            ),
             'actions' => array(
                 'title' => "Actions",
             ),
@@ -424,13 +417,9 @@ class CrudGen extends Plugin {
                 'title' => $lang['strcreated'],
                 'field' => field('date_created')
             ),
-            'pages_not_created' => array(
-                'title' => $this->lang['strpagesnotcreated'],
-                'field' => field('pages_not_created'),
-            ),
-            'pages_created' => array(
-                'title' => $this->lang['strpagescreated'],
-                'field' => field('pages_created'),
+            'pages' => array(
+                'title' => $this->lang['strpages'],
+                'field' => field('pages'),
             ),
             'actions' => array(
                 'title' => "Actions",
@@ -471,7 +460,7 @@ class CrudGen extends Plugin {
         );
 
         if ($this->checkAppDB()) {     //Checks if appgen db was installed
-            $rs = Application::getAppsOfDB($_REQUEST['database'], $_REQUEST['schema']);
+            $rs = Application::getApps($_REQUEST['database'], $_REQUEST['schema']);
 
             if (!empty($msg))
                 $misc->printMsg($msg);
@@ -1104,7 +1093,7 @@ class CrudGen extends Plugin {
                     }
 
                     $this->cleanWizardVars();
-                    $this->show_app($this->lang['strsaveappsuccessful']);
+                    $this->show_app($this->lang['strsavepagessuccessful']);
                     return;
             }
 
@@ -1167,10 +1156,6 @@ class CrudGen extends Plugin {
             'created' => array(
                 'title' => $lang['strcreated'],
                 'field' => field('date_created'),
-            ),
-            'completed' => array(
-                'title' => $this->lang['strcompleted'],
-                'field' => field('completed'),
             ),
             'actions' => array(
                 'title' => "Actions",
@@ -1519,18 +1504,29 @@ class CrudGen extends Plugin {
         }
     }
 
+    function generate_app(){
+        global $lang,$misc;
+
+        if(!isset($_REQUEST["appid"])) 
+            return $this->show_apps($this->lang['strerrnoappid']);
+        
+        $app = new Application();
+        $app->load($_REQUEST["appid"]);
+        $app->generate();
+    }
+
     function tree() {
 
         global $misc, $data;
 
-        $applications = Application::getAppsOfDB($_REQUEST['database'], $_REQUEST['schema']);
+        $applications = Application::getApps($_REQUEST['database'], $_REQUEST['schema']);
         $reqvars = $misc->getRequestVars('crudgen');
 
         $url = url(
                 'plugin.php', $reqvars, array(
-            'plugin' => $this->name,
-            'action' => 'show_app',
-            'app_id' => field('app_id')
+                    'plugin' => $this->name,
+                    'action' => 'show_app',
+                    'app_id' => field('app_id')
                 )
         );
 

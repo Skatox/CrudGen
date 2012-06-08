@@ -87,7 +87,7 @@ class Generator {
         if ($pk == -1)  return false;
         $sql = "SELECT a.{$pk},";
 
-//Adds table's headers to $code and creates the sql sentence
+        //Adds table's headers to $code and creates the sql sentence
         $num_fld = $page->countShowFields();
         $fields = $page->fields;
         $show_index = 0;
@@ -114,7 +114,7 @@ class Generator {
                 $show_index = $show_index + 1;
             }
         }
-//checks if the sql setence's parameters ends with comma, then deletes it
+        //checks if the sql setence's parameters ends with comma, then deletes it
         if (substr($sql, -1) == "," ) $sql[strlen($sql) - 1] = " ";
         if (substr($sql_extra_tbls, -1) == "," )
                 $sql_extra_tbls[strlen($sql_extra_tbls) - 1] = " ";
@@ -249,10 +249,10 @@ class Generator {
         $sql = "INSERT INTO {$app->getSchema()}.{$page->getTable()} (";
         $sql_values = ") VALUES (";
 
-//Sort this page fields by its order
+        //Sort this page fields by its order
         $page->sortFieldsByOrder();
 
-//If updates info at DB then generates input page
+        //If updates info at DB then generates input page
         $clean_vars_code ="";
         $code = "if(isset(\$_POST[\"operation\"]))\n\tif(\$_POST[\"operation\"]==\"insert\"){\n\t\t\$success= insertRecord();"
                 . "\n\t\tif(\$success==true) echo \"<p class=\\\"warnmsg\\\"><strong>{$lang['strinsertsuccess']}</strong></p>\";"
@@ -264,7 +264,7 @@ class Generator {
                 . "{$lang['strcolumn']}</th><th scope=\\\"row\\\" class=\\\"table-topright\\\">{$lang['strvalue']}</th></tr></thead>"
                 . "\n\t\t<tfoot>\n\t<tr>\n\t\t<td class=\\\"table-bottomleft\\\"></td><td class=\\\"table-bottomright\\\"></td></tr></tfoot>\n\t\t<tbody>";
 
-//Prints the input box for each field
+        //Prints the input box for each field
         $num_fld = $page->countShowFields();
         $fields = $page->fields;
         $show_index = 0;
@@ -280,12 +280,12 @@ class Generator {
                    $class_code = $this->generateValidationClasses($page->getTable(),$fields[$i]->getName());
                     $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\"  {$class_code} value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/></td></tr>";
                 }
-//Constructs SQL DATA
+        //Constructs SQL DATA
                 $sql = $sql . $fields[$i]->getName() . ",";
                 $sql_values = $sql_values . "'{\$_POST[\"{$fields[$i]->getName()}\"]}',";
             }
         }
-//checks if the sql setence's parameters ends with comma, then deletes it
+        //checks if the sql setence's parameters ends with comma, then deletes it
         if (substr($sql, -1) == ",") $sql[strlen($sql) - 1] = " ";
         if (substr($sql_values, -1) == "," ) $sql_values[strlen($sql_values) - 1] = ")";
 
@@ -301,11 +301,11 @@ class Generator {
                 . "\n\t\treturn false;\n\t}\n\telse{\n\t\tpg_free_result(\$rs);\n\t\treturn true;\n\t}";
 
         $code .= "\n\t\t</tbody>\n\t</table>";
-//Adds operations buttons
+        //Adds operations buttons
         $buttons_code = $this->generateButtonsCode($app, $page);
         $code .= "{$buttons_code}\";";
 
-//Creates the code function
+        //Creates the code function
         $function_code .= $this->getFunctionString("printRowsRadio", "", "return null;");
         $function_code .= $this->getFunctionString("printFilterBox", "", "return null;");
         $function_code .= $this->getFunctionString("printFormAction", "", "echo \"{$page->getFilename()}\";");
@@ -330,10 +330,10 @@ class Generator {
         $sql_array = "\$set_sql=array(";
         $sql_where = " WHERE {$this->getPK($app->getDBName(), $page->getTable())}='{\$id}'";
 
-//Sort this page fields by its order
+        //Sort this page fields by its order
         $page->sortFieldsByOrder();
 
-//If updates info at DB then generates input page
+        //If updates info at DB then generates input page
         $code = "\n\tif(isset(\$_POST[\"uindex\"]))\$uindex=\$_POST[\"uindex\"];"
                 . "\n\telse \$uindex=0;\n\tif(isset(\$_POST[\"selected\"])) {\n\t\t"
                 . "\$_SESSION[\"selected\"]=\$_POST[\"selected\"];\n\t}"
@@ -385,7 +385,7 @@ class Generator {
                 . "<tfoot>\n\t\t<tr>\n\t\t<td class=\\\"table-bottomleft\\\"></td><td class=\\\"table-bottomright\\\"></td></tr></tfoot>\n\t\t<tbody>";
 
         $show_index = 0;
-//Prints the input box for each field
+        //Prints the input box for each field
         for ($i = 0; $i < count($fields); $i++) {
             if ($fields[$i]->isOnPage()) {
                 $code .= "\n\t\t\t<tr><td>{$fields[$i]->getDisplayName()}</td>";
@@ -394,7 +394,7 @@ class Generator {
                             . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}',"
                             . "'{$this->getPK($app->getDBName(), $fields[$i]->getRemoteTable())}','{$fields[$i]->getRemoteField()}',\$row[{$show_index}]); echo \"</select></td></tr>";
                 } else {
-//checks if attribute is null or if it is date
+        //checks if attribute is null or if it is date
                     $class_code=$this->generateValidationClasses($page->getTable(),$fields[$i]->getName());
                     $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" {$class_code} value=\\\"\".htmlspecialchars(\$row[{$show_index}]).\"\\\"/></td></tr>";
                 }
@@ -402,10 +402,10 @@ class Generator {
             }
         }
         $code .= "\n\t\t</tbody>\n\t</table>";
-//Prints operation buttons
+        //Prints operation buttons
         $buttons_code = $this->generateButtonsCode($app, $page);
         $only_right_buttons= $this->generateButtonsCode($app, $page,true);
-//Code for print foreing key values in a select input
+        //Code for print foreing key values in a select input
         $printfk_code = "global \$conn;\n\t"
                 . "if (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
                 . "\n\t\$rs=pg_query(\$conn,\"SELECT \".\$pk.\",\".\$field.\" FROM \".\$schema.\".\".\$table);"
@@ -415,7 +415,7 @@ class Generator {
                 . "\n\t\tif(\$row[0]==\$selected_pk) echo\" selected=\\\"selected\\\" \";"
                 . "\n\t\techo \">{\$row[1]}</option>\";\n\t}\n\tpg_free_result(\$rs);";
 
-//Code for updating information
+        //Code for updating information
         $update_code = "global \$conn;\n\t{$sql_array}\n\t\$sql_args=\"\";"
                 . "\n\tforeach(\$set_sql as \$update_column){\n\t\t"
                 . "if(\$_POST[\$update_column]==\"\")\n\t\t\t\$sql_args=\$sql_args.\"{\$update_column}=NULL,\";"
@@ -457,7 +457,7 @@ class Generator {
         $code .= "{$buttons_code}\";\n\t\t}\n\tif(!isset(\$_POST[\"operation\"])|| (count(\$_POST[\"selected\"])<1)){"
                 . "\n\t\techo \"{$pk_request}\";\n\t}";
 
-//Creates the code function
+        //Creates the code function
         $function_code .= $this->getFunctionString("printRowsRadio", "", "return null;");
         $function_code .= $this->getFunctionString("printFilterBox", "", "return null;");
         $function_code .= $this->getFunctionString("printFormAction", "", "echo \"{$page->getFilename()}\";");
@@ -714,15 +714,15 @@ class Generator {
     public function validateParameters() {
         global $lang, $misc;
 
-//Checks if page's filename is not null or doesn't have extension
+        //Checks if page's filename is not null or doesn't have extension
         if (($_POST['page_filename'] == "") || (substr($_POST['page_filename'], -4) != ".php") || !isset($_POST["page_filename"]))
             return $this->printError($lang['strerrpagefield']);
 
-//Checks if page title is not null
+        //Checks if page title is not null
         if ($_POST["page_title"] == "" || !isset($_POST["page_title"]))
             return $this->printError($lang['strnopagetitle']);
 
-//Checks if each filename has a .php extension
+        //Checks if each filename has a .php extension
         foreach ($_POST["display"] as $dis_name) {
             if ($dis_name == "")
                 return printError($lang['strnodisplayname']);

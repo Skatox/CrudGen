@@ -63,7 +63,7 @@
     $lang['strclickaddpages'] = 'Click here to add more pages';
     $lang['strthefile'] = 'The file ';
     $lang['strfilecreation'] = 'is going to be created to work with the following columns:';
-    $lang['strsaveappsuccessful']= 'Application stored successfully.';
+    $lang['strsavepagessuccessful']= 'Pages added successfully.';
     $lang['strappdatatxt'] = 'Fill required data to start generating the application:';
 
     //Pages
@@ -95,6 +95,7 @@
     $lang['strmaninp'] = 'Manual input';
     $lang['strpriority'] = 'Display priority';
     $lang['strsavepagesuccessful'] = 'Page updated successfully';
+    $lang['strnopagesgenerated'] = 'All pages were generated for this application'; 
     
     //Errors
     $lang['strerrnotbl'] = 'Selected schema is empty, you must have some tables to create an application.';
@@ -118,5 +119,7 @@
     $lang['strerrfielddb'] = 'There was a problem when saving fields into the database';
     $lang['strselpagetodelete'] = 'Select pages to be deleted';
     $lang['strselapptodelete'] = 'Select applications to be deleted';
+    $lang['strerrnoappid'] = 'Missing application\'s ID';
+
     
 ?>
