@@ -5,7 +5,6 @@ include_once('plugins/CrudGen/classes/Application.php');
 include_once('plugins/CrudGen/classes/Columns.php');
 include_once('plugins/CrudGen/classes/Pages.php');
 include_once('plugins/CrudGen/classes/Generator.php');
-include_once('plugins/CrudGen/classes/Theme.php');
 include_once('plugins/CrudGen/classes/Security.php');
 
 class CrudGen extends Plugin {
@@ -723,8 +722,8 @@ class CrudGen extends Plugin {
 
         if (!empty($_REQUEST['cancel']))
             return $this->show_apps();
-        
-        if(!isset($_REQUEST["app_id"]) && !isset($_REQUEST['ma'])){
+
+        if (!isset($_REQUEST["app_id"]) && !isset($_REQUEST['ma'])) {
             $this->show_apps($this->lang['strselapptodelete']);
             return;
         }
@@ -735,13 +734,13 @@ class CrudGen extends Plugin {
             $misc->printBody();
             $misc->printTrail('schema');
             $misc->printTabs('schema', 'crudgen');
-            
+
             $delete_text = isset($_REQUEST['ma']) ? $this->lang['strconfdelapps'] : $this->lang['strconfdelapp'];
 
             echo "\n\t<h2>{$lang['strdelete']}</h2>\n\t<p>{$delete_text}</p>"
             . "\n\t<form method=\"post\" style=\"float:left; margin-right: 5px;\">\n\t\t"
             . "\n\t\t<input type=\"hidden\" name=\"action\" value=\"delete_app\" />";
-            
+
             //If multi drop
             if (isset($_REQUEST['ma'])) {
                 foreach ($_REQUEST['ma'] as $a) {
@@ -749,18 +748,18 @@ class CrudGen extends Plugin {
                     echo '<input type="hidden" name="app_id[]" value="', htmlspecialchars($app['app_id']), "\" />\n";
                 }
             } else {
-                if(isset($_REQUEST["app_id"]))
+                if (isset($_REQUEST["app_id"]))
                     echo "\n\t\t<input type=\"hidden\" name=\"app_id\" value=\"{$_REQUEST["app_id"]}\" />";
             }
-            
-            echo  "\n\t\t<input type=\"submit\" name=\"delete\" value=\"{$lang['strdelete']}\" />"
-                    ."\n\t\t<input type=\"submit\" name=\"cancel\" value=\"{$lang['strcancel']}\"  />\n\t</form>";
+
+            echo "\n\t\t<input type=\"submit\" name=\"delete\" value=\"{$lang['strdelete']}\" />"
+            . "\n\t\t<input type=\"submit\" name=\"cancel\" value=\"{$lang['strcancel']}\"  />\n\t</form>";
 
             $misc->printFooter();
         } else {
-             if (is_array($_POST['app_id'])) {
+            if (is_array($_POST['app_id'])) {
                 $flag = 0;
-                
+
                 foreach ($_POST['app_id'] as $app_id) {
                     $flag = Application::delete($app_id);
 
@@ -774,7 +773,7 @@ class CrudGen extends Plugin {
             }
             else
                 $msg = (Application::delete($_REQUEST["app_id"])) ? $this->lang['strerrdelapp'] : $this->lang['strdelapp'];
-            
+
             $this->show_apps($msg);
         }
     }
@@ -1222,7 +1221,7 @@ class CrudGen extends Plugin {
         if (!empty($msg))
             $misc->printMsg($msg);
 
-        echo "\n<form name=\"editpageform\" method=\"post\">";
+        echo "\n<form name=\"editpageform\" method=\"post\" action=\"\">";
         echo "\n<table>\n\t<tr><th class=\"data\">{$this->lang['strpageinfo']}</th></tr>\n\t<tr><td>";
         echo "\n<table>\n\t<tr>\n\t<th class=\"data left\"> {$lang['strtable']}</th>";
         echo "<td class=\"data required\">" . $page->getTable() . "</td></tr>";
@@ -1352,14 +1351,13 @@ class CrudGen extends Plugin {
         echo "\n\t<input type=\"submit\" name=\"sendbutton\" value=\"{$lang['strsave']}\" />";
         echo "\n\t<input type=\"submit\" name=\"cancel\" value=\"{$lang['strcancel']}\" />";
         echo "</form>";
-        echo "<script type=\"text/javascript\" src=\"pages.js\"></script>";
         echo $this->include_js();
         $misc->printFooter();
     }
 
     function update_page() {
         global $lang;
-        
+
         if (!empty($_REQUEST['cancel']))
             return $this->list_pages();
 
@@ -1449,8 +1447,8 @@ class CrudGen extends Plugin {
 
         if (!empty($_REQUEST['cancel']))
             return $this->list_pages();
-        
-        if(!isset($_REQUEST["page_id"]) && !isset($_REQUEST['ma'])){
+
+        if (!isset($_REQUEST["page_id"]) && !isset($_REQUEST['ma'])) {
             $this->list_pages($this->lang['strselpagetodelete']);
             return;
         }
@@ -1474,7 +1472,7 @@ class CrudGen extends Plugin {
                     echo '<input type="hidden" name="page_id[]" value="', htmlspecialchars($page['page_id']), "\" />\n";
                 }
             } else {
-                if(isset($_REQUEST["page_id"]))
+                if (isset($_REQUEST["page_id"]))
                     echo "\n\t\t<input type=\"hidden\" name=\"page_id\" value=\"{$_REQUEST["page_id"]}\" />";
             }
 
@@ -1485,7 +1483,7 @@ class CrudGen extends Plugin {
         } else {
             if (is_array($_POST['page_id'])) {
                 $flag = 0;
-                
+
                 foreach ($_POST['page_id'] as $page_id) {
                     $flag = Pages::delete($page_id);
 
@@ -1504,15 +1502,62 @@ class CrudGen extends Plugin {
         }
     }
 
-    function generate_app(){
-        global $lang,$misc;
+    function generate_app() {
+        global $lang, $misc;
 
-        if(!isset($_REQUEST["appid"])) 
+        if (!isset($_REQUEST["app_id"]))
             return $this->show_apps($this->lang['strerrnoappid']);
         
+        if(isset($_REQUEST['btnCancel']))
+            return $this->show_app ();
+
+        $download_files = isset($_REQUEST['download']);
+        $app_theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
+        $app_id = $_REQUEST['app_id'];
+
         $app = new Application();
-        $app->load($_REQUEST["appid"]);
-        $app->generate();
+        $app->load($app_id);
+
+        if (!$download_files) {
+
+            $themes = Generator::getThemes();
+
+            $misc->printHeader($lang['strdatabase']);
+            $misc->printBody();
+            $misc->printTrail('schema');
+            $misc->printTabs('schema', 'applications');
+
+            $misc->printTitle($this->lang['strgenerating'] . ' ' . $app->getName());
+
+            echo "<form id=\"genops\" method=\"post\" action=\"\">\n";
+            echo "\n\t\t<input type=\"hidden\" name=\"action\" value=\"generate_app\" />";
+            echo "<table>\n";
+            echo "\t<tr>\n\t\t<th class=\"data left required\">{$this->lang['strtheme']}</th>\n";
+            echo "\t\t<td class=\"data\">";
+            echo "<select id=\"app_theme\" name=\"app_theme\" onchange=\"updatePreview()\" >";
+
+            foreach ($themes as $theme) {
+                echo "<option ";
+                echo $app_theme == $theme ? ' selected="selected" ' : '';
+                echo ">{$theme}</option>";
+            }
+
+            echo "\n\t\t</td></tr>";
+
+            echo "\t<tr>\n\t\t<th class=\"data left\">{$this->lang['strpreview']}</th>\n";
+            echo "\t<td><img id=\"thumbnail\" src=\"plugins/CrudGen/themes/{$app_theme}/thumbnail.png\" ";
+            echo "width=\"320\" height=\"240\" alt=\"{$this->lang['strpreview']}\" /></td></tr>\n";
+            echo "\n\t\t</table>";
+            echo "<input type=\"hidden\" name=\"download\" value=\"1\" />\n";
+            echo "<input type=\"submit\" name=\"btnGenerate\" value=\"{$this->lang['strgenerate']}\" />\n";
+            echo "<input type=\"submit\" name=\"btnCancel\" value=\"{$lang['strcancel']}\" />\n";
+            echo "</form>";
+            echo $this->include_js();
+
+            $misc->printFooter();
+        } else {
+            $app->generate();
+        }
     }
 
     function tree() {
@@ -1524,9 +1569,9 @@ class CrudGen extends Plugin {
 
         $url = url(
                 'plugin.php', $reqvars, array(
-                    'plugin' => $this->name,
-                    'action' => 'show_app',
-                    'app_id' => field('app_id')
+            'plugin' => $this->name,
+            'action' => 'show_app',
+            'app_id' => field('app_id')
                 )
         );
 

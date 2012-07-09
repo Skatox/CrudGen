@@ -97,6 +97,13 @@
     $lang['strsavepagesuccessful'] = 'Page updated successfully';
     $lang['strnopagesgenerated'] = 'All pages were generated for this application'; 
     
+    //Generation
+    $lang['strtheme'] = 'Theme';
+    $lang['strgenerating'] = 'Generating';
+    $lang['strpreview'] = 'Preview';
+    
+    
+    
     //Errors
     $lang['strerrnotbl'] = 'Selected schema is empty, you must have some tables to create an application.';
     $lang['strnocrudgendb'] = 'CrudGen\'s schema is not installed, please read the INSTALL file (located at plugin\'s folder) for instructions.';

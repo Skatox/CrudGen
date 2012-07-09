@@ -24,7 +24,6 @@ CREATE TABLE crudgen.application (
   app_name VARCHAR(63) UNIQUE NOT NULL,
   descr TEXT NULL,
   date_created DATE NOT NULL DEFAULT now(),
-  theme_name VARCHAR(63) NOT NULL,
   app_owner VARCHAR(255) NOT NULL,
   db_user VARCHAR(63) NOT NULL DEFAULT 'crudgen_admin',
   db_pass VARCHAR(63) NOT NULL,

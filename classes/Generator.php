@@ -8,7 +8,7 @@ class Generator {
      * @param $table name of the table
      * @return string with primary key's column name
      */
-    function getPK($db, $table) {
+    public static function getPK($db, $table) {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor($db);
@@ -16,6 +16,7 @@ class Generator {
                 . "WHERE table_name='{$table}' AND constraint_name='{$table}_pkey'";
         return $driver->selectField($sql, 'column_name');
     }
+
     /**
      *  This functions generates necessary classes to validate an insert or update page
      *  using jQuery's  validation plugin
@@ -23,10 +24,10 @@ class Generator {
      *  @param $table_name name of the table to check fields attributes
      * @param $name name of the field to check validation rules
      *  @return html code for the required classes (null string if there are not any)
-    */
+     */
     private function generateValidationClasses($table_name, $name) {
         global $data;
-        $class_code='';
+        $class_code = '';
         $attrs = $data->getTableAttributes($table_name);
 
         while (!$attrs->EOF) {
@@ -38,11 +39,13 @@ class Generator {
                 $class_code .= "date ";
             $attrs->moveNext();
         }
-        
-        if(!empty($class_code)) $class_code= ' class=\"'.trim($class_code).'\" ';
+
+        if (!empty($class_code))
+            $class_code = ' class=\"' . trim($class_code) . '\" ';
 
         return $class_code;
     }
+
     /**
      * Function to generate a browse webpage or a delete webpage from a Page object, delete pages are exactly
      * as the browse page, with the exception of inclution of delete functions, the order and appeareance of fields
@@ -55,16 +58,16 @@ class Generator {
      */
     private function generateReportPage($path, Application $app, Pages $page) {
         global $lang, $data;
-        $function_code='';
+        $function_code = '';
         $FKexist = false;
-        $add_delete_code= false;
+        $add_delete_code = false;
 
         /* Checks if this table has a page to delete information, if so, adds a
          *  function to delete information inside this report page, */
-        $tbl_op = $this->getTableOperations($app,$page->getTable());
-        for ($i=0;$i<count($tbl_op["operations"]);$i++) {
-            if ($tbl_op['operations'][$i]== 'd'){
-                $add_delete_code= true;
+        $tbl_op = $this->getTableOperations($app, $page->getTable());
+        for ($i = 0; $i < count($tbl_op["operations"]); $i++) {
+            if ($tbl_op['operations'][$i] == 'd') {
+                $add_delete_code = true;
                 break;
             }
         }
@@ -84,7 +87,8 @@ class Generator {
         $sql_tbl = 0;
         $sql_extra_tbls = ","; //here it saves the extra tables (if exists)
         $sql_where = " WHERE";    //here saves extra where for fk (if exists)
-        if ($pk == -1)  return false;
+        if ($pk == -1)
+            return false;
         $sql = "SELECT a.{$pk},";
 
         //Adds table's headers to $code and creates the sql sentence
@@ -108,25 +112,27 @@ class Generator {
                     $sql_tbl = $sql_tbl + 1;
                 }
                 else
-                    $sql=$sql . " a." . $fields[$i]->getName() . ",";
+                    $sql = $sql . " a." . $fields[$i]->getName() . ",";
 
                 $table_code = $table_code . ">{$fields[$i]->getDisplayName()}</th>";
                 $show_index = $show_index + 1;
             }
         }
         //checks if the sql setence's parameters ends with comma, then deletes it
-        if (substr($sql, -1) == "," ) $sql[strlen($sql) - 1] = " ";
-        if (substr($sql_extra_tbls, -1) == "," )
-                $sql_extra_tbls[strlen($sql_extra_tbls) - 1] = " ";
+        if (substr($sql, -1) == ",")
+            $sql[strlen($sql) - 1] = " ";
+        if (substr($sql_extra_tbls, -1) == ",")
+            $sql_extra_tbls[strlen($sql_extra_tbls) - 1] = " ";
         if (substr($sql_where, -3) == "AND")
-                $sql_where = substr($sql_where, 0, -3);
+            $sql_where = substr($sql_where, 0, -3);
 
         //adds the rest of the sql sentence
         $sql = $sql . " FROM {$app->getSchema()}.{$page->getTable()} a" . $sql_extra_tbls;
 
         //checks if there are extra where parameters
-        if ($sql_where != " WHERE")  $sql = $sql . $sql_where;
-        
+        if ($sql_where != " WHERE")
+            $sql = $sql . $sql_where;
+
         $table_code = $table_code . "</tr>\n\t\t</thead>";
 
         //Adds table's footer
@@ -143,11 +149,11 @@ class Generator {
                     . "\n\t}";
         }
         else
-            $code='';
+            $code = '';
 
         //First add the db connection to the function's code
         $code .= "\n\tglobal \$conn;\n\t\$extra_sql=\" WHERE 1=1 \";\n\n\t\n\tif(isset(\$_POST[\"term\"]))"
-                ."\n\tif(\$_POST[\"term\"]!=\"\"){\n\t\t\$extra_sql.=\"";
+                . "\n\tif(\$_POST[\"term\"]!=\"\"){\n\t\t\$extra_sql.=\"";
 
         //If this page work with a fk doesn't need to add a WHERE to the sql sentence
         /* if(!$FKexist) $code=$code."WHERE ";
@@ -204,7 +210,7 @@ class Generator {
                 . "\n\t//Closes db connection\n\tpg_free_result(\$rs);\n\techo \"</tbody></table></div>\";"
                 . "\n\t//Prints pages\n\tprintPagination(\$rows,\$_POST[\"limit\"]);\n\t//Prints operation buttons"
                 . "\n\techo \"{$buttons_code}\";";
-        
+
         //Query pages code
         $qpages_code = "\n\tif(\$nrows==0) return'';\n\t\$pnum= ceil(\$nrows/\$nlimit);\n\t\$pcurrent= \$_POST['offset'];\n\t\$max = 10;"
                 . "\n\t\$from = \$pcurrent-(\$max/2);\n\t\$to = \$pcurrent+(\$max/2);\n\t\$right = \$pnum-\$pcurrent+1;"
@@ -244,7 +250,7 @@ class Generator {
      */
     private function generateInsertPage($path, Application $app, Pages $page) {
         global $lang, $data;
-        $function_code='';
+        $function_code = '';
 
         $sql = "INSERT INTO {$app->getSchema()}.{$page->getTable()} (";
         $sql_values = ") VALUES (";
@@ -253,7 +259,7 @@ class Generator {
         $page->sortFieldsByOrder();
 
         //If updates info at DB then generates input page
-        $clean_vars_code ="";
+        $clean_vars_code = "";
         $code = "if(isset(\$_POST[\"operation\"]))\n\tif(\$_POST[\"operation\"]==\"insert\"){\n\t\t\$success= insertRecord();"
                 . "\n\t\tif(\$success==true) echo \"<p class=\\\"warnmsg\\\"><strong>{$lang['strinsertsuccess']}</strong></p>\";"
                 . "\n\t}\n\t\tif(isset(\$_SESSION['appgen_user'])){"
@@ -277,17 +283,19 @@ class Generator {
                             . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}',"
                             . "'{$this->getPK($app->getDBName(), $fields[$i]->getRemoteTable())}','{$fields[$i]->getRemoteField()}'); echo \"</select></td></tr>";
                 } else {
-                   $class_code = $this->generateValidationClasses($page->getTable(),$fields[$i]->getName());
+                    $class_code = $this->generateValidationClasses($page->getTable(), $fields[$i]->getName());
                     $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\"  {$class_code} value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/></td></tr>";
                 }
-        //Constructs SQL DATA
+                //Constructs SQL DATA
                 $sql = $sql . $fields[$i]->getName() . ",";
                 $sql_values = $sql_values . "'{\$_POST[\"{$fields[$i]->getName()}\"]}',";
             }
         }
         //checks if the sql setence's parameters ends with comma, then deletes it
-        if (substr($sql, -1) == ",") $sql[strlen($sql) - 1] = " ";
-        if (substr($sql_values, -1) == "," ) $sql_values[strlen($sql_values) - 1] = ")";
+        if (substr($sql, -1) == ",")
+            $sql[strlen($sql) - 1] = " ";
+        if (substr($sql_values, -1) == ",")
+            $sql_values[strlen($sql_values) - 1] = ")";
 
         $printfk_code = "global \$conn;\n\t\n\tif (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
                 . "\n\t\$rs=pg_query(\$conn,\"SELECT \".\$pk.\",\".\$field.\" FROM \".\$schema.\".\".\$table);"
@@ -311,8 +319,8 @@ class Generator {
         $function_code .= $this->getFunctionString("printFormAction", "", "echo \"{$page->getFilename()}\";");
         $args = array("\$schema,\$table", "\$pk", "\$field");
         $function_code .= $this->getFunctionString("printFKOptions", $args, $printfk_code);
-        $function_code .= $this->getFunctionString("insertRecord", "", $clean_vars_code.$insert_code);
-        $function_code .= $this->generateOperationFunction(null,$clean_vars_code.$code);
+        $function_code .= $this->getFunctionString("insertRecord", "", $clean_vars_code . $insert_code);
+        $function_code .= $this->generateOperationFunction(null, $clean_vars_code . $code);
         return $this->generatePageFile($function_code, $path . $page->getFilename(), $app->getThemeName(), $page);
     }
 
@@ -324,7 +332,7 @@ class Generator {
      */
     private function generateUpdatePage($path, Application $app, Pages $page) {
         global $lang, $data;
-        $function_code='';
+        $function_code = '';
 
         $sql = "UPDATE {$app->getSchema()}.{$page->getTable()} SET ";
         $sql_array = "\$set_sql=array(";
@@ -363,12 +371,12 @@ class Generator {
         }
         //delete last comma
         if (substr($code, -1) == ","
-
-            )$code[strlen($code) - 1] = " ";
+        )
+            $code[strlen($code) - 1] = " ";
 //      if(substr($sql, -1)==",")$sql[strlen($sql)-1]=" ";
         if (substr($sql_array, -1) == ","
-
-            )$sql_array[strlen($sql_array) - 1] = " ";
+        )
+            $sql_array[strlen($sql_array) - 1] = " ";
 
         $sql_array = $sql_array . ");";
         $code .= " FROM {$app->getSchema()}.{$page->getTable()} WHERE "
@@ -394,8 +402,8 @@ class Generator {
                             . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}',"
                             . "'{$this->getPK($app->getDBName(), $fields[$i]->getRemoteTable())}','{$fields[$i]->getRemoteField()}',\$row[{$show_index}]); echo \"</select></td></tr>";
                 } else {
-        //checks if attribute is null or if it is date
-                    $class_code=$this->generateValidationClasses($page->getTable(),$fields[$i]->getName());
+                    //checks if attribute is null or if it is date
+                    $class_code = $this->generateValidationClasses($page->getTable(), $fields[$i]->getName());
                     $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" {$class_code} value=\\\"\".htmlspecialchars(\$row[{$show_index}]).\"\\\"/></td></tr>";
                 }
                 $show_index = $show_index + 1;
@@ -404,7 +412,7 @@ class Generator {
         $code .= "\n\t\t</tbody>\n\t</table>";
         //Prints operation buttons
         $buttons_code = $this->generateButtonsCode($app, $page);
-        $only_right_buttons= $this->generateButtonsCode($app, $page,true);
+        $only_right_buttons = $this->generateButtonsCode($app, $page, true);
         //Code for print foreing key values in a select input
         $printfk_code = "global \$conn;\n\t"
                 . "if (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
@@ -426,24 +434,24 @@ class Generator {
                 . "\n\tif (!\$rs) {\n\t\techo \"<p></p><p class=\\\"warnmsg\\\"><strong>{$lang['strupdatefail']}</strong><br />\".pg_last_error(\$conn).\"</p>\";"
                 . "\n\t\tpg_free_result(\$rs);\n\t\treturn false;\n\t}"
                 . "\n\telse{\n\t\tpg_free_result(\$rs);\n\t\treturn true;\n\t}";
-        
-        /***Box for request for a pk if none was sent**/
+
+        /*         * *Box for request for a pk if none was sent* */
         //Search for the report page's filename to create a link to go back
         $tbl_op = $this->getTableOperations($app, $page->getTable());
-        $report_filename='';
+        $report_filename = '';
 
-        if(count($tbl_op)>0){
-            $i= array_search('b',$tbl_op['operations']);
+        if (count($tbl_op) > 0) {
+            $i = array_search('b', $tbl_op['operations']);
 
-            if($i!==false)
+            if ($i !== false)
                 $report_filename = $tbl_op['filenames'][$i];
         }
 
-        if(!empty($report_filename))
-            $gobacklink = str_replace('{URL}',"\\\"".$report_filename."\\\"",$lang['gobackreport']);
+        if (!empty($report_filename))
+            $gobacklink = str_replace('{URL}', "\\\"" . $report_filename . "\\\"", $lang['gobackreport']);
         else
             $gobacklink = '';
-        
+
         $pk_request = "<p class=\\\"warnmsg\\\"><span>{$lang['strnoupdateargs']}<br />{$gobacklink}</span></p>
                     <p>{$lang['strselupdatetxt']}</p>
                     <input type=\\\"hidden\\\" name=\\\"operation\\\" value=\\\"edit\\\" />
@@ -535,12 +543,12 @@ class Generator {
      * @param $noMainButtons flag to check if print main action buttons or not
      * @return string html code for buttons
      */
-    private function generateButtonsCode (Application $app, Pages $page, $noMainButtons=false) {
+    private function generateButtonsCode(Application $app, Pages $page, $noMainButtons = false) {
         global $lang;
-        $buttons_code='';
+        $buttons_code = '';
         $tbl_op = $this->getTableOperations($app, $page->getTable());
-        
-        if(!$noMainButtons) {
+
+        if (!$noMainButtons) {
             $buttons_code = "\n\t<div class=\\\"full-wide\\\"><div class=\\\"center-buttons\\\">";
             switch ($page->getOperation()) {
                 case "delete": $buttons_code .= "\t<a id=\\\"deleteButton\\\" class=\\\"button sendForm\\\" href=\\\"#d\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strdelete']}</span></a>";
@@ -557,21 +565,21 @@ class Generator {
         $buttons_code .= "<div class=\\\"right-buttons\\\">";
         $buttons_code .= "\n\t<div class=\\\"clear\\\">";
 
-        for ($i=0;$i<count($tbl_op["operations"]);$i++) {
+        for ($i = 0; $i < count($tbl_op["operations"]); $i++) {
             $cur_op = $page->getOperation();
-            if ($tbl_op['operations'][$i]!= $cur_op[0])
+            if ($tbl_op['operations'][$i] != $cur_op[0])
                 switch ($tbl_op['operations'][$i]) {
-                    case "d": 
-                        if($cur_op=='update')
+                    case "d":
+                        if ($cur_op == 'update')
                             $buttons_code .= "\n\t\t<a id=\\\"deleteButton\\\" class=\\\"button\\\" href=\\\"#d\\\" rel=\\\"{$tbl_op['filenames'][$i]}\\\"><span>{$lang['strdelete']}</span></a>";
-                        if($cur_op=='browse')
+                        if ($cur_op == 'browse')
                             $buttons_code .= "\n\t\t<a id=\\\"deleteReportButton\\\" class=\\\"button\\\" href=\\\"#d\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strdelete']}</span></a>";
                         break;
                     case "i":
                         $buttons_code .= "\n\t\t<a id=\\\"insertButton\\\" class=\\\"button\\\" href=\\\"{$tbl_op['filenames'][$i]}\\\"><span>{$lang['strinsert']}</span></a>";
                         break;
                     case "u":
-                        if($cur_op!='insert')
+                        if ($cur_op != 'insert')
                             $buttons_code .= "\n\t\t<a id=\\\"updateButton\\\" class=\\\"button\\\" href=\\\"#i\\\" rel=\\\"{$tbl_op['filenames'][$i]}\\\"><span>{$lang['stredit']}</span></a>";
                         break;
                     case "b":
@@ -603,7 +611,7 @@ class Generator {
                 . "AND p.app_id=a.app_id AND pt.pages_page_id=p.page_id";
         $rs = $driver->selectSet($sql);
 
-        $i=0;
+        $i = 0;
         foreach ($rs as $row) {
             $tbl_op['operations'][] = $rs->fields['operation'];
             $tbl_op['filenames'][] = $rs->fields['page_filename'];
@@ -619,7 +627,7 @@ class Generator {
      * @return string with html code for options
      */
     public function printOptions($array, $select) {
-        $html_code='';
+        $html_code = '';
         $i = 0;
         foreach ($array as $value) {
             $html_code = $html_code . "\n\t\t\t\t<option \";";
@@ -637,7 +645,7 @@ class Generator {
      * @return string with html code for options
      */
     public function printSelOptions($array, $sel_value) {
-        $html_code='';
+        $html_code = '';
         foreach ($array as $value) {
             $html_code .= "\n\t\t\t\t<option";
             if ($value == $sel_value)
@@ -760,6 +768,57 @@ class Generator {
         return false;
     }
 
-//--------------------------------------------------------------
+    /**
+     * Recursive function to copy elements from a folder to other
+     *
+     * @param $src source file's path
+     * @param $dst destion of files
+     */
+    public static function recursive_copy($src, $dst) {
+        $dir = opendir($src);
+
+        if (file_exists($dst)) { //If directory exists deletes it
+            foreach (glob($dst . '/*') as $file) {
+                if (is_dir($file))
+                    rrmdir($file);
+                else
+                    unlink($file);
+            }
+            rmdir($dst);
+        }
+
+        @mkdir($dst);
+
+        while (false !== ( $file = readdir($dir))) {
+            if (( $file != '.' ) && ( $file != '..' ) && ($file != 'thumbnail.png')) {
+                if (is_dir($src . '/' . $file)) {
+                    $this->recursive_copy($src . '/' . $file, $dst . '/' . $file);
+                } else {
+                    copy($src . '/' . $file, $dst . '/' . $file);
+                }
+            }
+        }
+        closedir($dir);
+    }
+
+    /**
+     * Returns an array of detected themes
+     *
+     * @return string array of detected themes
+     * @access public
+     */
+    public static function getThemes() {
+        $themes = array();
+        $dir = dir("./plugins/CrudGen/themes/");
+
+        while ($folder = $dir->read()) {
+            if (($folder != '.') && ($folder != '..'))
+                $themes[] = $folder;
+        }
+        $dir->close();
+        return $themes;
+    }
+
 }
+
 ?>
