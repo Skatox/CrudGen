@@ -24,7 +24,9 @@ class Application {
     private $auth_table;
     private $auth_user_col;
     private $auth_pass_col;
-    private $theme; 
+    public $theme;
+    public $library;
+    public $lang;
 
     /**
      * Adds a new page to this application
@@ -68,36 +70,27 @@ class Application {
      * Creates the common.php file, wich include common functions for the app
      * @return bool about file creation process
      */
-    public function createCommonFile($path) {
-        global $lang, $misc;
-        $gen = new Generator();
-        $sec = new Security();
-        $filename = $path . "common.php";
-        $commonfile = fopen($filename, 'w');
-        fwrite($commonfile, "<?php");
+    public function writeCommonFile($path) {
+        global $misc;
 
-        $server_info = $misc->getServerInfo();
+        $filename = $path . "/common.php";
+        $commonfile = fopen($filename, 'w');
 
         if ($commonfile) {
-            $functions = "\n\$conn;\nsession_start();\n";
+            $functions = Generator::getGlobals($this);
+            $functions .= Generator::getFunction("printTitle", "", "\t\techo '{$this->app_name}';");
+            $functions .= Generator::getFunction("printDescr", "", "\t\techo '{$this->descr}';");
+            $functions .= Generator::getFunction("printMenu", "", $this->getMenu());
+            $functions .= Generator::getAuthCode($this); //For none just creates the db connection
+
+            fwrite($commonfile, "<?php");
             fwrite($commonfile, $functions);
-            $functions = $gen->getFunctionString("authUser", "", $sec->getSecurityCode($this));
-            fwrite($commonfile, $functions);
-            $functions = $gen->getFunctionString("printAppTitle", "", "echo '{$this->app_name}';");
-            fwrite($commonfile, $functions);
-            $functions = $gen->getFunctionString("printAppDescr", "", "echo '{$this->descr}';");
-            fwrite($commonfile, $functions);
-            $functions = $gen->getFunctionString("printMenu", "", $this->getMenu());
-            fwrite($commonfile, $functions);
-            $functions = $gen->getFunctionString("printMenuTitle", "", "echo '{$lang['strpagemainmenu']}';");
-            fwrite($commonfile, $functions);
-            $functions = $gen->getFunctionString("printFooter", "", "echo '{$lang['strpagefooter']}';");
-            fwrite($commonfile, $functions);
-            fwrite($commonfile, "?>");
+            fwrite($commonfile, "\n?>");
             fclose($commonfile);
+
             return true;
         } else {
-            $misc->printMsg($lang['strnocommonfile']);
+            $misc->printMsg($this->lang['strnocommonfile']);
             return false;
         }
     }
@@ -171,21 +164,18 @@ class Application {
      * Generates all files of this application
      */
     public function generate() {
-        
+
         $this->theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
-        $app_folder = sys_get_temp_dir() . '/' . $this->getFolderName(); 
-        echo $app_folder;
-        
-        Generator::recursive_copy("plugins/CrudGen/themes/".$this->theme, $app_folder );   
-        
-      /*  foreach ($this->pages as $page) {
-            if ($page->isCompleted()) {
-                $page->updatePagePostInfo();
-                if (!$gen->generatePage($this, $page)) {
-                    $misc->printMsg($lang['strerrpagegen'] . " {$page->getFilename()}");
-                }
-            }
-        }*/
+        $this->library = isset($_REQUEST['app_library']) ? $_REQUEST['app_library'] : 'pgsql';
+        $app_folder = sys_get_temp_dir() . '/' . $this->getFolderName();
+
+        Generator::recursive_copy("plugins/CrudGen/themes/" . $this->theme, $app_folder);
+        $this->writeCommonFile($app_folder);
+
+        foreach ($this->pages as $page){
+            if (!Generator::generatePage($this, $page, $app_folder))
+                $misc->printMsg("{$this->lang['strerrpagegen']} {$page->getFilename()} .");
+        }
     }
 
     /**
@@ -443,7 +433,6 @@ class Application {
         $_REQUEST['descr'] = $this->getDescription();
         $_REQUEST['auth_table'] = $this->getAuthTable();
         $_REQUEST['auth_user_col'] = $this->getAuthUser();
-        $_REQUEST['theme'] = $this->theme->getThemeName();
         $_REQUEST['auth_method'] = $this->getAuthMethod();
         $_REQUEST['auth_pass_col'] = $this->getAuthPassword();
     }
@@ -594,12 +583,7 @@ class Application {
         $sql = sprintf("INSERT INTO crudgen.application (app_name, descr,db_name, "
                 . "db_schema, db_user,db_pass, db_host, db_port, "
                 . "auth_method, auth_table,auth_user_col,auth_pass_col) "
-                . "VALUES ('%s','%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s',"
-                . "'%s','%s') RETURNING app_id", 
-                $this->app_name, $this->descr, $this->db_name, $this->db_schema, 
-                $this->db_user, $this->db_pass, $this->db_host, $this->db_port, 
-                $this->auth_method, $this->auth_table, $this->auth_user_col, 
-                $this->auth_pass_col);
+                . "VALUES ('%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s') RETURNING app_id", $this->app_name, $this->descr, $this->db_name, $this->db_schema, $this->db_user, $this->db_pass, $this->db_host, $this->db_port, $this->auth_method, $this->auth_table, $this->auth_user_col, $this->auth_pass_col);
 
         $app_id = $driver->selectField($sql, "app_id");
         $this->app_id = $app_id;

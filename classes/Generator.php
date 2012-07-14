@@ -3,6 +3,155 @@
 class Generator {
 
     /**
+     * Here generates all global variables and common code
+     * @param Application $app application where to insert the security code
+     * @return string php code for global variables
+     */
+    public static function getGlobals(Application $app) {
+        $code = "\n\tdefine('DB_HOST','{$app->getDBHost()}');\n\t";
+        $code .= "define('DB_PORT',{$app->getDBPort()});\n\t";
+        $code .= "define('DB_USER','{$app->getDBUser()}');\n\t";
+        $code .= "define('DB_PASS','{$app->getDBPass()}');\n\t";
+        $code .= "define('DB_NAME','{$app->getDBName()}');\n\t";
+        $code .= "\n\tsession_start();";
+
+        return $code;
+    }
+
+    /**
+     * Gets connections string 
+     * @param string $library PHP Posgrest library to use
+     * @return string code to connect to the database
+     */
+    public static function getConnection($library, $user = 'DB_USER', $password = 'DB_PASS') {
+        if ($library == 'pgsql') {
+            $code = "\$conn = pg_connect(\"host='{DB_HOST}' "
+                    . "port='{DB_PORT}' password='{" . $password . "}' "
+                    . "user='{" . $user . "}' dbname='{DB_NAME}'\");";
+        } else {
+            $code = "\$conn = new PDO(\"pgsql:dbname={DB_NAME};"
+                    . "host={DB_HOST}:{DB_PORT}\","
+                    . "'{" . $user . "}','{" . $password . "}');";
+        }
+
+        return $code;
+    }
+
+    /**
+     * Generates authentication code for the common file
+     * @param Application $app application to generate auth code
+     * @return authorization process code
+     */
+    public static function getAuthCode($app) {
+        $code = null;
+
+        if ($app->getAuthMethod() != 'none') {
+
+            //Logout function
+            $logout_code = "\n\t\t"
+                    . "unset(\$_SESSION['crudgen_user']);\n\t\t"
+                    . "unset(\$_SESSION['crudgen_passwd']);\n\t\t"
+                    . "session_destroy();\n\t";
+
+            $code = Generator::getFunction("logout", "", $logout_code);
+
+            //Login function
+            switch ($app->getAuthMethod()) {
+                case "dbuser":
+                    $login_code = Generator::getLoginByDbUser($app);
+                    break;
+                case "dbtable":
+                    $code .= "\n\t" . Generator::getConnection($app->library);
+                    $login_code = Generator::getLoginByDbTable($app);
+                    break;
+            }
+            $code .= Generator::getFunction("checkAccess", "", $login_code);
+
+            //Global code
+            $code .= "\n\t"
+                    . "if(isset(\$_POST['login_close']))\n\t\t"
+                    . "logout();\n\n\t";
+        } else {
+            $code = Generator::getConnection($app->library);
+        }
+        return $code;
+    }
+
+    /**
+     *  Gets authentication via a Postgres user
+     * @param Application $app application to generate auth code
+     * @return authorization process code
+     */
+    public static function getLoginByDbUser(Application $app) {
+
+        $code = "\n\t\tif(isset(\$_SESSION['crudgen_user']) && isset(\$_SESSION['crudgen_passwd']) ){\n\t\t\t";
+        $code .= Generator::getConnection($app->library, "\$_SESSION['crudgen_user']", "\$_SESSION['crudgen_passwd']");
+        $code .= "\n\t\t} else {\n\t\t\t";
+
+        if ($app->library == 'pgsql') {
+
+            $code .= "if(isset(\$_POST['crudgen_user']) && isset(\$_POST['crudgen_passwd']) )\n\t\t\t\t";
+            $code .= Generator::getConnection($app->library, "\$_POST['crudgen_user']", "\$_POST['crudgen_passwd']");
+            $code .= "\n\t\t\tif(\$conn){\n\t\t\t\t"
+                    . "\$_SESSION['crudgen_user']=\$_POST['crudgen_user'];\$_SESSION['crudgen_passwd']=\$_POST['crudgen_passwd'];"
+                    . "\n\t\t\t}else {\n\t\t\t\t"
+                    . "\$_SESSION['msg_error']=\"{$app->lang['strloginerror']}\";\n\t\t\t\t"
+                    . 'include "login.inc.php";'
+                    . "\n\t\t\t}";
+        } else {
+            $code .= "if(isset(\$_POST['crudgen_user']) && isset(\$_POST['crudgen_passwd']) ){\n\t\t\t\t";
+            $code .= "try{\n\t\t\t\t\t";
+            $code .= Generator::getConnection($app->library, "\$_POST['crudgen_user']", "\$_POST['crudgen_passwd']");
+            $code .= "\n\t\t\t\t\t\$_SESSION['crudgen_user']=\$_POST['crudgen_user'];\n\t\t\t\t\t"
+                    . "\$_SESSION['crudgen_passwd']=\$_POST['crudgen_passwd'];";
+            $code .= "\n\t\t\t\t}catch(PDOException \$e){\n\t\t\t\t\t"
+                    . "\$_SESSION['msg_error']= \"{$app->lang['strloginerror']}\";\n\t\t\t\t\t"
+                    . 'include "login.inc.php";'
+                    . "\n\t\t\t\t}"
+                    . "\n\t\t\t}";
+        }
+        $code .= "\n\t\t}";
+
+        return $code;
+    }
+
+    /**
+     * This function generates code for security trought an username and password
+     * stored in the database
+     * @param Application $app application where to insert the security code
+     * @return string with php code for no security
+     */
+    public static function getLoginByDbTable(Application $app) {
+
+        $code = "\n\t\tif(isset(\$_POST['crudgen_user']) && isset(\$_POST['crudgen_passwd']) ){\n\t\t\t";
+
+
+        if ($app->library == 'pgsql') {
+            $code .= "\$query=\"SELECT {$app->getAuthUser()},{$app->getAuthPassword()} "
+                    . "\n\t\t\t\tFROM {$app->getSchema()}.{$app->getAuthTable()} "
+                    . "\n\t\t\t\tWHERE {$app->getAuthUser()}='{\$_POST['crudgen_user']}' AND {$app->getAuthPassword()}='{\$_POST['crudgen_passwd']}'\";"
+                    . "\n\t\t\t\$rs=pg_query(\$conn,\$query);\n\t\t\t"
+                    . "if(pg_num_rows(\$rs)){\n\t\t\t\t";
+        } else {
+            $code .= "\$query=\"SELECT {$app->getAuthUser()},{$app->getAuthPassword()} "
+                    . "\n\t\t\t\tFROM {$app->getSchema()}.{$app->getAuthTable()} "
+                    . "\n\t\t\t\tWHERE {$app->getAuthUser()}=:crudgen_user AND {$app->getAuthPassword()}=:crudgen_passwd\";"
+                    . "\n\t\t\t\$rs = \$conn->prepare(\$query);\n\t\t\t"
+                    . "\$rs->execute(array(':crudgen_user'=>\$_POST['crudgen_user'], ':crudgen_passwd'=>\$_POST['crudgen_passwd']));\n\t\t\t"
+                    . "if(\$rs->rowCount()){\n\t\t\t\t";
+        }
+        $code .= "\$_SESSION['crudgen_user'] = \$_POST['crudgen_user'];\n\t\t\t\t"
+                . "\$_SESSION['crudgen_passwd'] = \$_POST['crudgen_passwd'];\n\t\t\t"
+                . "}\n\t\t\t"
+                . "else {\n\t\t\t\t"
+                . "\$_SESSION['msg_error'] = \"{$app->lang['strloginerror']}\";\n\t\t\t\t"
+                . 'include "login.inc.php";'
+                . "\n\t\t\t}\n\t\t}";
+
+        return $code;
+    }
+
+    /**
      * Returns the column name of a table's primary key
      * @param $db name of database where the table is located
      * @param $table name of the table
@@ -18,6 +167,311 @@ class Generator {
     }
 
     /**
+     * Function to generate a page from a Page object
+     * @param $path the application path where files are going to be written
+     * @param $app application object to get some general information
+     * @param $page desired page object to generate its file
+     * @return boolean reporting if page could be created
+     */
+    public static function generatePage(Application $app, Pages $page, $path) {
+        switch ($page->operation) {
+            case "create": return self::generateCreatePage($app, $page, $path);
+            case "report": return self::generateReportPage($path, $app, $page);
+            case "update": return self::generateUpdatePage($path, $app, $page);
+        }
+        return true;
+    }
+    
+    /**
+     * This function generates a Crate page
+     * @param $app application object where the $app belongs
+     * @param $page Page object wich represents the generating page
+     * @return bool if this page was created
+     */
+    public static function generateCreatePage(Application $app, Pages $page, $path) {
+        global $lang;
+        $function_code = '';
+
+        $sql = "INSERT INTO {$app->getSchema()}.{$page->getTable()} (";
+        $sql_values = ") VALUES (";
+
+        //Sort this page fields by its order
+        $page->sortFieldsByOrder();
+
+        //If updates info at DB then generates input page
+        $clean_vars_code = "";
+        $code = "if(isset(\$_POST[\"operation\"]))\n\tif(\$_POST[\"operation\"]==\"insert\"){\n\t\t\$success= insertRecord();"
+                . "\n\t\tif(\$success==true) echo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strinsertsuccess']}</strong></p>\";"
+                . "\n\t}\n\t\tif(isset(\$_SESSION['crudgen_user'])){"
+                . "\n\techo \"<input type=\\\"hidden\\\" name=\\\"operation\\\" value=\\\"insert\\\" />"
+                . "\n\t\t<input type=\\\"hidden\\\" name=\\\"page_insert_table\\\" value=\\\"{$page->getTable()}\\\" />"
+                . "\n\t\t<table id=\\\"table\\\">\n\t<thead><tr><th scope=\\\"row\\\" class=\\\"table-topleft\\\">"
+                . "{$lang['strcolumn']}</th><th scope=\\\"row\\\" class=\\\"table-topright\\\">{$lang['strvalue']}</th></tr></thead>"
+                . "\n\t\t<tfoot>\n\t<tr>\n\t\t<td class=\\\"table-bottomleft\\\"></td><td class=\\\"table-bottomright\\\"></td></tr></tfoot>\n\t\t<tbody>";
+
+        //Prints the input box for each field
+        $fields = $page->fields;
+        for ($i = 0; $i < count($fields); $i++) {
+            if ($fields[$i]->isOnPage()) {
+                $clean_vars_code .="\n\tif(!isset(\$_POST[\"{$fields[$i]->getName()}\"])) \$_POST[\"{$fields[$i]->getName()}\"]='';";
+                $code .= "\n\t\t\t<tr><td>{$fields[$i]->getDisplayName()}</td>";
+                if ($fields[$i]->isFK()) {
+                    $code .= "<td><select name=\\\"{$fields[$i]->getName()}\\\" class=\\\"almost-full-wide\\\">\";"
+                            . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}',"
+                            . "'" . self::getPK($app->getDBName(), $fields[$i]->getRemoteTable()) . "','{$fields[$i]->getRemoteField()}'); echo \"</select></td></tr>";
+                } else {
+                    $class_code = self::generateValidationClasses($page->getTable(), $fields[$i]->getName());
+                    $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\"  {$class_code} value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/></td></tr>";
+                }
+                //Constructs SQL DATA
+                $sql = $sql . $fields[$i]->getName() . ",";
+                $sql_values = $sql_values . "'{\$_POST[\"{$fields[$i]->getName()}\"]}',";
+            }
+        }
+        //checks if the sql setence's parameters ends with comma, then deletes it
+        if (substr($sql, -1) == ",")
+            $sql[strlen($sql) - 1] = " ";
+        if (substr($sql_values, -1) == ",")
+            $sql_values[strlen($sql_values) - 1] = ")";
+
+        $printfk_code = "global \$conn;\n\t\n\tif (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
+                . "\n\t\$rs=pg_query(\$conn,\"SELECT \".\$pk.\",\".\$field.\" FROM \".\$schema.\".\".\$table);"
+                . "\n\tif (!\$rs) {\n\t\techo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrorquery']}</strong></div>\"; exit;\n\t}"
+                . "\n\twhile (\$row = pg_fetch_array(\$rs)){\n\t\t"
+                . "echo \"<option value=\\\"{\$row[0]}\\\">{\$row[1]}</option>\";\n\t}\n\tpg_free_result(\$rs);";
+
+        $insert_code = "global \$conn;\n\tif (!\$conn) { echo \"<p><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
+                . "\n\t\$rs=pg_query(\$conn,\"{$sql}{$sql_values}\");\n\tif (!\$rs) {\n\t\t"
+                . "echo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strinsertfail']}</strong><br />\".pg_last_error(\$conn).\"</p>\";"
+                . "\n\t\treturn false;\n\t}\n\telse{\n\t\tpg_free_result(\$rs);\n\t\treturn true;\n\t}";
+
+        $code .= "\n\t\t</tbody>\n\t</table>";
+        //Adds operations buttons
+        $buttons_code = self::generateButtonsCode($app, $page);
+        $code .= "{$buttons_code}\";";
+
+        //Creates the code function
+        $function_code .= self::getFunction("printRowsRadio", "", "return null;");
+        $function_code .= self::getFunction("printFilterBox", "", "return null;");
+        $function_code .= self::getFunction("printFormAction", "", "echo \"{$page->getFilename()}\";");
+        $args = array("\$schema,\$table", "\$pk", "\$field");
+        $function_code .= self::getFunction("printFKOptions", $args, $printfk_code);
+        $function_code .= self::getFunction("insertRecord", "", $clean_vars_code . $insert_code);
+        $function_code .= self::generateOperationFunction(null, $clean_vars_code . $code);
+        return self::generatePageFile($page, $path , $page->getFilename() , $function_code);
+    }
+
+    /**
+     * Returns an array of operations that an applications do in a specific table
+     * @param $app an application object to get its operations
+     * @param $table name of the table
+     * @param $filename_array optional array to store page's filename of operations array
+     * @return array of operations (b=browse, d=deletion, i=insert, u=update) and
+     *               each respective filename 
+     */
+    public static function getTableOperations(Application $app, $table) {
+        global $misc;
+        $tbl_op = array();
+        $tbl_op['operations'] = array();
+        $tbl_op['filenames'] = array();
+
+        $driver = $misc->getDatabaseAccessor("phppgadmin");
+        $sql = "SELECT p.page_filename, p.operation FROM crudgen.pages p, crudgen.page_tables pt,crudgen.application a "
+                . "WHERE pt.table_name='{$table}' AND a.app_id='{$app->getId()}' "
+                . "AND p.app_id=a.app_id AND pt.pages_page_id=p.page_id";
+        $rs = $driver->selectSet($sql);
+
+        $i = 0;
+        foreach ($rs as $row) {
+            $tbl_op['operations'][] = $rs->fields['operation'];
+            $tbl_op['filenames'][] = $rs->fields['page_filename'];
+            $i++;
+        }
+        return $tbl_op;
+    }
+
+    /**
+     * Prints options for a html combo-box
+     * @param $array an array with values for the combo box
+     * @param $select compare value to print select
+     * @return string with html code for options
+     */
+    public static function printOptions($array, $select) {
+        $html_code = '';
+        $i = 0;
+        foreach ($array as $value) {
+            $html_code = $html_code . "\n\t\t\t\t<option \";";
+            $html_code = $html_code . " if({$select}=='{$value}') echo \" selected=\\\"selected\\\"\"; echo \" ";
+            $html_code = $html_code . ">{$value}</option>";
+            $i++;
+        }
+        return $html_code;
+    }
+
+    /**
+     * Prints options for a html combo-box and receives a value to select by default
+     * @param $array an array with values for the combo box
+     * @param $sel_value value of selected index
+     * @return string with html code for options
+     */
+    public function printSelOptions($array, $sel_value) {
+        $html_code = '';
+        foreach ($array as $value) {
+            $html_code .= "\n\t\t\t\t<option";
+            if ($value == $sel_value)
+                $html_code .= " selected=\"selected\"";
+            $html_code .= ">{$value}</option>\n";
+        }
+        return $html_code;
+    }
+
+    /**
+     * Prints error and returns false due to error
+     *
+     * @return bool false due to error
+     */
+    public static function printError($error_text) {
+        global $misc;
+        $misc->printMsg($error_text);
+        return false;
+    }
+
+    /**
+     * Returns a string with a function code to write it on a file
+     * @param $name function's name
+     * @param $args an array with the function arguments
+     * @param $code the code inside the function, if it has return include it too
+     * @return string with complete function code
+     */
+    public static function getFunction($name, $args, $code) {
+        $i = 0;
+        $argc = count($args);
+
+        $strfunction = "\n\n\tfunction {$name}(";
+
+        if (is_array($args))
+            foreach ($args as $arg) {
+                $strfunction = $strfunction . $arg;
+                if ($i < $argc - 1)
+                    $strfunction = $strfunction . ",";
+                $i++;
+            }
+        else
+            $strfunction = $strfunction . $args;
+
+        $strfunction .= "){\n{$code}\n\t}";
+
+        return $strfunction;
+    }
+
+    /**
+     * This function validates parameters from a browse page
+     * @return bool of accepted or not parameters from a browse page
+     */
+    public function validateParameters() {
+        global $lang;
+
+        //Checks if page's filename is not null or doesn't have extension
+        if (($_POST['page_filename'] == "") || (substr($_POST['page_filename'], -4) != ".php") || !isset($_POST["page_filename"]))
+            return $this->printError($lang['strerrpagefield']);
+
+        //Checks if page title is not null
+        if ($_POST["page_title"] == "" || !isset($_POST["page_title"]))
+            return $this->printError($lang['strnopagetitle']);
+
+        //Checks if each filename has a .php extension
+        foreach ($_POST["display"] as $dis_name) {
+            if ($dis_name == "")
+                return printError($lang['strnodisplayname']);
+        }
+        return true;
+    }
+
+    public function createZipFile($source, $destination) {
+        if (extension_loaded('zip') === true) {
+            if (file_exists($source) === true) {
+                $zip = new ZipArchive();
+
+                if ($zip->open($destination, ZIPARCHIVE::CREATE) === true) {
+                    $source = realpath($source);
+
+                    if (is_dir($source) === true) {
+                        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source), RecursiveIteratorIterator::SELF_FIRST);
+
+                        foreach ($files as $file) {
+                            $file = realpath($file);
+
+                            if (is_dir($file) === true) {
+                                $zip->addEmptyDir(str_replace($source . '/', '', $file . '/'));
+                            } else if (is_file($file) === true) {
+                                $zip->addFromString(str_replace($source . '/', '', $file), file_get_contents($file));
+                            }
+                        }
+                    } else if (is_file($source) === true) {
+                        $zip->addFromString(basename($source), file_get_contents($source));
+                    }
+                    return $zip->close();
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Recursive function to copy elements from a folder to other
+     *
+     * @param $src source file's path
+     * @param $dst destion of files
+     */
+    public static function recursive_copy($src, $dst) {
+        $dir = opendir($src);
+
+        if (file_exists($dst)) { //If directory exists deletes it
+            $files = glob($dst . '/*');
+            if (count($files) > 1) {
+                foreach ($files as $file) {
+                    if (is_dir($file))
+                        rrmdir($file);
+                    else
+                        unlink($file);
+                }
+                rmdir($dst);
+            }
+        }
+
+        @mkdir($dst);
+
+        while (false !== ( $file = readdir($dir))) {
+            if (( $file != '.' ) && ( $file != '..' ) && ($file != 'thumbnail.png')) {
+                if (is_dir($src . '/' . $file)) {
+                    $this->recursive_copy($src . '/' . $file, $dst . '/' . $file);
+                } else {
+                    copy($src . '/' . $file, $dst . '/' . $file);
+                }
+            }
+        }
+        closedir($dir);
+    }
+
+    /**
+     * Returns an array of detected themes
+     *
+     * @return string array of detected themes
+     * @access public
+     */
+    public static function getThemes() {
+        $themes = array();
+        $dir = dir("./plugins/CrudGen/themes/");
+
+        while ($folder = $dir->read()) {
+            if (($folder != '.') && ($folder != '..'))
+                $themes[] = $folder;
+        }
+        $dir->close();
+        return $themes;
+    }
+
+    /**
      *  This functions generates necessary classes to validate an insert or update page
      *  using jQuery's  validation plugin
      *
@@ -25,7 +479,7 @@ class Generator {
      * @param $name name of the field to check validation rules
      *  @return html code for the required classes (null string if there are not any)
      */
-    private function generateValidationClasses($table_name, $name) {
+    public static function generateValidationClasses($table_name, $name) {
         global $data;
         $class_code = '';
         $attrs = $data->getTableAttributes($table_name);
@@ -56,15 +510,14 @@ class Generator {
      * @param $is_delete_page bool if it should generate a delete page (default creates browsePage)
      * @return bool if this page was created
      */
-    private function generateReportPage($path, Application $app, Pages $page) {
-        global $lang, $data;
+    public static function generateReportPage($path, Application $app, Pages $page) {
+        global $lang;
         $function_code = '';
-        $FKexist = false;
         $add_delete_code = false;
 
         /* Checks if this table has a page to delete information, if so, adds a
          *  function to delete information inside this report page, */
-        $tbl_op = $this->getTableOperations($app, $page->getTable());
+        $tbl_op = self::getTableOperations($app, $page->getTable());
         for ($i = 0; $i < count($tbl_op["operations"]); $i++) {
             if ($tbl_op['operations'][$i] == 'd') {
                 $add_delete_code = true;
@@ -81,7 +534,7 @@ class Generator {
         $table_code = $table_code . "<th scope=\\\"col\\\" class=\\\"table-topleft\\\">{$lang['strselect']}</th>";
 
         //Searchs for the primary key of this table
-        $pk = $this->getPK($app->getDBName(), $page->getTable());
+        $pk = self::getPK($app->getDBName(), $page->getTable());
 
         //variable to counts tables in the sql
         $sql_tbl = 0;
@@ -169,23 +622,21 @@ class Generator {
                 . "\n\t\$paginate_sql=\" LIMIT {\$_POST[\"limit\"]}\";"
                 . "\n\t\$paginate_sql=\$paginate_sql.\" OFFSET {\$offset}\";\n"
                 . "\n\tif (!\$conn) {"
-                . "\n\t\t echo \"<p class=\\\"warnmsg\\\"><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p><br /><br />\";\n\t\texit;\n\t}"
+                . "\n\t\t echo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p><br /><br />\";\n\t\texit;\n\t}"
                 . "\n\t\$rs=pg_query(\$conn,\"{$sql}\".\$extra_sql);\n\tif (!\$rs) {\n\t\t"
-                . "echo \"<strong>{$lang['strerrorquery']}</strong>\";\n\t\texit;\n\t}\n\t\$rows= pg_num_rows(\$rs);"
+                . "echo \"<strong>{$app->lang['strerrorquery']}</strong>\";\n\t\texit;\n\t}\n\t\$rows= pg_num_rows(\$rs);"
                 . "\n\t\$rs=pg_query(\$conn,\"{$sql}\".\$extra_sql.\$paginate_sql);";
         //Prints box code
-        $code .= "\n\techo \"<div class=\\\"right;\\\">\";\n\t\tif(isset(\$_SESSION['appgen_user'])){"
-                . "\n\t\techo \"<div class=\\\"right clear\\\"><a href=\\\"#logout\\\" id=\\\"logOutButton\\\">{$lang['strlogout']}</a></div><p></p>\";\n\t\t}"
-                . "\n\t\techo \"<div class=\\\"filter_cell\\\"><label for=\\\"order\\\">{$lang['strorder']}:</label>\n\t\t\t<select  id=\\\"order\\\" name=\\\"order\\\"><option \";\n\t\t\tif(\$_POST[\"order\"]=='asc') echo \"selected=\\\"selected\\\"\"; \n\t\t\techo \" value=\\\"asc\\\">{$lang['strasc']}</option>"
-                . "<option \";\n\t\t\tif(\$_POST[\"order\"]=='desc') echo \"selected=\\\"selected\\\"\"; \n\t\t\techo \" value=\\\"desc\\\">{$lang['strdesc']}\n\t\t\t</option></select></div>"
-                . "\n\t\t<div class=\\\"filter_cell\\\"><label for=\\\"column_order\\\">{$lang['strsortby']}:</label>\n\t\t\t<select id=\\\"column_order\\\" name=\\\"column_order\\\">" . $this->printOptions($page->getFieldsName(), '$_POST["column_order"]') . "\n\t\t\t</select></div>"
+        $code .=  "\n\t\techo \"<div class=\\\"filter_cell\\\"><label for=\\\"order\\\">{$app->lang['strorder']}:</label>\n\t\t\t<select  id=\\\"order\\\" name=\\\"order\\\"><option \";\n\t\t\tif(\$_POST[\"order\"]=='asc') echo \"selected=\\\"selected\\\"\"; \n\t\t\techo \" value=\\\"asc\\\">{$app->lang['strasc']}</option>"
+                . "<option \";\n\t\t\tif(\$_POST[\"order\"]=='desc') echo \"selected=\\\"selected\\\"\"; \n\t\t\techo \" value=\\\"desc\\\">{$app->lang['strdesc']}\n\t\t\t</option></select></div>"
+                . "\n\t\t<div class=\\\"filter_cell\\\"><label for=\\\"column_order\\\">{$app->lang['strsortby']}:</label>\n\t\t\t<select id=\\\"column_order\\\" name=\\\"column_order\\\">" . self::printOptions($page->getFieldsName(), '$_POST["column_order"]') . "\n\t\t\t</select></div>"
                 . "\n\t\t<div class=\\\"filter_cell\\\"><label for=\\\"term\\\">{$lang['strvalue']}:</label>\n\t\t\t<input type=\\\"text\\\" name=\\\"term\\\" id=\\\"term\\\" value=\\\"\".\$_POST[\"term\"].\"\\\" size=\\\"10\\\" /></div>"
-                . "\n\t\t<div class=\\\"filter_cell\\\"><label for=\\\"column\\\">{$lang['strcolumn']}:</label>\n\t\t\t<select id=\\\"column\\\" name=\\\"column\\\">" . $this->printOptions($page->getFieldsName(), '$_POST["column"]') . "\n\t\t\t</select></div>\n\t\t"
+                . "\n\t\t<div class=\\\"filter_cell\\\"><label for=\\\"column\\\">{$lang['strcolumn']}:</label>\n\t\t\t<select id=\\\"column\\\" name=\\\"column\\\">" . self::printOptions($page->getFieldsName(), '$_POST["column"]') . "\n\t\t\t</select></div>\n\t\t"
                 . "</div>\";";
         //Paginate radios code
         $code .= "echo \"<div class=\\\"clear-right\\\">\n\t\t"
                 . "<div class=\\\"filter_cell\\\">\n\t\t\t<a class=\\\"button sendForm\\\" href=\\\"#refresh\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strrefresh']}</span></a>\n\t\t</div>"
-                . "\n\t<div class=\\\"filter_cell\\\">{$lang['strsrows']}&nbsp;<input type=\\\"radio\\\" name=\\\"limit\\\"  id=\\\"limit-10\\\" value=\\\"10\\\"\";if(\$_POST[\"limit\"]==10 || !isset(\$_POST[\"limit\"])) echo\" checked=\\\"checked\\\"\"; echo \"/>"
+                . "\n\t<div class=\\\"filter_cell\\\">{$app->lang['strsrows']}&nbsp;<input type=\\\"radio\\\" name=\\\"limit\\\"  id=\\\"limit-10\\\" value=\\\"10\\\"\";if(\$_POST[\"limit\"]==10 || !isset(\$_POST[\"limit\"])) echo\" checked=\\\"checked\\\"\"; echo \"/>"
                 . "\n\t\t<label for=\\\"limit-10\\\">10</label>"
                 . "\n\t\t<input type=\\\"radio\\\" name=\\\"limit\\\" id=\\\"limit-20\\\" value=\\\"20\\\"\";if(\$_POST[\"limit\"]==20) echo \" checked=\\\"checked\\\"\"; echo \"/>"
                 . "\n\t\t<label for=\\\"limit-20\\\">20</label>"
@@ -201,7 +652,7 @@ class Generator {
         $num_fld += 1;
 
         //Adds operations buttons
-        $buttons_code = $this->generateButtonsCode($app, $page);
+        $buttons_code = self::generateButtonsCode($app, $page);
 
         $code .= "\n\twhile (\$row = pg_fetch_array(\$rs)){\n\t\techo \"<tr>\";"
                 . "\n\t\tfor(\$i=0;\$i<{$num_fld};\$i=\$i+1){\n\t\t\tif(\$i==0)"
@@ -230,99 +681,19 @@ class Generator {
             //Creates the args array for the function
             $args = array();
             $args[] = "\$id";
-            $function_code = $this->getFunctionString("deleteRow", $args, $delete_code);
+            $function_code = self::getFunction("deleteRow", $args, $delete_code);
         }
-        $function_code .= $this->getFunctionString("printFormAction", "", "echo \"{$page->getFilename()}\";");
-        //$function_code .= $this->getFunctionString("printRowsRadio", "", $pagrad_code);
-        //$function_code .= $this->getFunctionString("printFilterBox", "", $box_code);
+        $function_code .= self::getFunction("printFormAction", "", "echo \"{$page->getFilename()}\";");
+        //$function_code .= self::getFunction("printRowsRadio", "", $pagrad_code);
+        //$function_code .= self::getFunction("printFilterBox", "", $box_code);
         $args = array("\$nrows", "\$nlimit");
-        $function_code .= $this->getFunctionString("printPagination", $args, $qpages_code);
+        $function_code .= self::getFunction("printPagination", $args, $qpages_code);
         //Creates the code function
-        $function_code .= $this->generateOperationFunction(null, $code);
-        return $this->generatePageFile($function_code, $path . $page->getFilename(), $app->getThemeName(), $page);
+        $function_code .= self::generateOperationFunction(null, $code);
+        return self::generatePageFile($page, $path , $page->getFilename() , $function_code);
     }
 
-    /**
-     * This function generates an Insert Pages
-     * @param $app application object where the $app belongs
-     * @param $page Page object wich represents the generating page
-     * @return bool if this page was created
-     */
-    private function generateInsertPage($path, Application $app, Pages $page) {
-        global $lang, $data;
-        $function_code = '';
-
-        $sql = "INSERT INTO {$app->getSchema()}.{$page->getTable()} (";
-        $sql_values = ") VALUES (";
-
-        //Sort this page fields by its order
-        $page->sortFieldsByOrder();
-
-        //If updates info at DB then generates input page
-        $clean_vars_code = "";
-        $code = "if(isset(\$_POST[\"operation\"]))\n\tif(\$_POST[\"operation\"]==\"insert\"){\n\t\t\$success= insertRecord();"
-                . "\n\t\tif(\$success==true) echo \"<p class=\\\"warnmsg\\\"><strong>{$lang['strinsertsuccess']}</strong></p>\";"
-                . "\n\t}\n\t\tif(isset(\$_SESSION['appgen_user'])){"
-                . "\n\t\t\techo \"<div class=\\\"right;\\\"> <a href=\\\"#logout\\\" id=\\\"logOutButton\\\">{$lang['strlogout']}</a></div><p></p>\";\n\t\t}"
-                . "\n\techo \"<input type=\\\"hidden\\\" name=\\\"operation\\\" value=\\\"insert\\\" />"
-                . "\n\t\t<input type=\\\"hidden\\\" name=\\\"page_insert_table\\\" value=\\\"{$page->getTable()}\\\" />"
-                . "\n\t\t<table id=\\\"table\\\">\n\t<thead><tr><th scope=\\\"row\\\" class=\\\"table-topleft\\\">"
-                . "{$lang['strcolumn']}</th><th scope=\\\"row\\\" class=\\\"table-topright\\\">{$lang['strvalue']}</th></tr></thead>"
-                . "\n\t\t<tfoot>\n\t<tr>\n\t\t<td class=\\\"table-bottomleft\\\"></td><td class=\\\"table-bottomright\\\"></td></tr></tfoot>\n\t\t<tbody>";
-
-        //Prints the input box for each field
-        $num_fld = $page->countShowFields();
-        $fields = $page->fields;
-        $show_index = 0;
-        for ($i = 0; $i < count($fields); $i++) {
-            if ($fields[$i]->isOnPage()) {
-                $clean_vars_code .="\n\tif(!isset(\$_POST[\"{$fields[$i]->getName()}\"])) \$_POST[\"{$fields[$i]->getName()}\"]='';";
-                $code .= "\n\t\t\t<tr><td>{$fields[$i]->getDisplayName()}</td>";
-                if ($fields[$i]->isFK()) {
-                    $code .= "<td><select name=\\\"{$fields[$i]->getName()}\\\" class=\\\"almost-full-wide\\\">\";"
-                            . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}',"
-                            . "'{$this->getPK($app->getDBName(), $fields[$i]->getRemoteTable())}','{$fields[$i]->getRemoteField()}'); echo \"</select></td></tr>";
-                } else {
-                    $class_code = $this->generateValidationClasses($page->getTable(), $fields[$i]->getName());
-                    $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\"  {$class_code} value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/></td></tr>";
-                }
-                //Constructs SQL DATA
-                $sql = $sql . $fields[$i]->getName() . ",";
-                $sql_values = $sql_values . "'{\$_POST[\"{$fields[$i]->getName()}\"]}',";
-            }
-        }
-        //checks if the sql setence's parameters ends with comma, then deletes it
-        if (substr($sql, -1) == ",")
-            $sql[strlen($sql) - 1] = " ";
-        if (substr($sql_values, -1) == ",")
-            $sql_values[strlen($sql_values) - 1] = ")";
-
-        $printfk_code = "global \$conn;\n\t\n\tif (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
-                . "\n\t\$rs=pg_query(\$conn,\"SELECT \".\$pk.\",\".\$field.\" FROM \".\$schema.\".\".\$table);"
-                . "\n\tif (!\$rs) {\n\t\techo \"<p  class=\\\"warnmsg\\\"><strong>{$lang['strerrorquery']}</strong></div>\"; exit;\n\t}"
-                . "\n\twhile (\$row = pg_fetch_array(\$rs)){\n\t\t"
-                . "echo \"<option value=\\\"{\$row[0]}\\\">{\$row[1]}</option>\";\n\t}\n\tpg_free_result(\$rs);";
-
-        $insert_code = "global \$conn;\n\tif (!\$conn) { echo \"<p><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
-                . "\n\t\$rs=pg_query(\$conn,\"{$sql}{$sql_values}\");\n\tif (!\$rs) {\n\t\t"
-                . "echo \"<p class=\\\"warnmsg\\\"><strong>{$lang['strinsertfail']}</strong><br />\".pg_last_error(\$conn).\"</p>\";"
-                . "\n\t\treturn false;\n\t}\n\telse{\n\t\tpg_free_result(\$rs);\n\t\treturn true;\n\t}";
-
-        $code .= "\n\t\t</tbody>\n\t</table>";
-        //Adds operations buttons
-        $buttons_code = $this->generateButtonsCode($app, $page);
-        $code .= "{$buttons_code}\";";
-
-        //Creates the code function
-        $function_code .= $this->getFunctionString("printRowsRadio", "", "return null;");
-        $function_code .= $this->getFunctionString("printFilterBox", "", "return null;");
-        $function_code .= $this->getFunctionString("printFormAction", "", "echo \"{$page->getFilename()}\";");
-        $args = array("\$schema,\$table", "\$pk", "\$field");
-        $function_code .= $this->getFunctionString("printFKOptions", $args, $printfk_code);
-        $function_code .= $this->getFunctionString("insertRecord", "", $clean_vars_code . $insert_code);
-        $function_code .= $this->generateOperationFunction(null, $clean_vars_code . $code);
-        return $this->generatePageFile($function_code, $path . $page->getFilename(), $app->getThemeName(), $page);
-    }
+    
 
     /**
      * This function generates an Update Page
@@ -330,13 +701,13 @@ class Generator {
      * @param $page Page object wich represents the generating page
      * @return bool if this page was created
      */
-    private function generateUpdatePage($path, Application $app, Pages $page) {
+    public static function generateUpdatePage($path, Application $app, Pages $page) {
         global $lang, $data;
         $function_code = '';
 
         $sql = "UPDATE {$app->getSchema()}.{$page->getTable()} SET ";
         $sql_array = "\$set_sql=array(";
-        $sql_where = " WHERE {$this->getPK($app->getDBName(), $page->getTable())}='{\$id}'";
+        $sql_where = " WHERE " . self::getPK($app->getDBName(), $page->getTable()) . "='{\$id}'";
 
         //Sort this page fields by its order
         $page->sortFieldsByOrder();
@@ -346,20 +717,18 @@ class Generator {
                 . "\n\telse \$uindex=0;\n\tif(isset(\$_POST[\"selected\"])) {\n\t\t"
                 . "\$_SESSION[\"selected\"]=\$_POST[\"selected\"];\n\t}"
                 . "\n\tif(isset(\$_POST[\"operation\"]))\n\tif(\$_POST[\"operation\"]==\"update\"){\n\t\t\$success= updateRow(\$_SESSION[\"selected\"][\$uindex]);"
-                . "\n\tif(\$success==true) {\n\t\techo \"<p class=\\\"warnmsg\\\"><strong>{$lang['strupdatesuccess']}</strong></p>\";"
+                . "\n\tif(\$success==true) {\n\t\techo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strupdatesuccess']}</strong></p>\";"
                 . "\n\t\t\$uindex=\$uindex+1;\n\t\techo \"<input type=\\\"hidden\\\" name=\\\"uindex\\\" value=\\\"\".\$uindex.\"\\\" />\";"
                 . "\n\t}\n\tif(\$uindex==count(\$_SESSION[\"selected\"])){\n\t\tunset(\$_POST[\"operation\"]);"
                 . "\n\t\tunset(\$_SESSION[\"selected\"]);\n\t}\n\telse{\n\t\t\$_POST[\"operation\"]=\"edit\";\n\t}\n}"
                 . "\n\tif(isset(\$_SESSION[\"selected\"])&&(\$_POST[\"operation\"]==\"edit\")){\n\t\t"
-                . "\n\t\tif(isset(\$_SESSION['appgen_user'])){"
+                . "\n\t\tif(isset(\$_SESSION['crudgen_user'])){"
                 . "\n\t\techo \"<div class=\\\"right;\\\"> <a href=\\\"#logout\\\" id=\\\"logOutButton\\\">{$lang['strlogout']}</a></div><p></p>\";\n\t\t}"
-                . "echo \"<p class=\\\"left\\\">{$lang['streditrecord']} \".(\$uindex+1).\"{$lang['streditof']}\".count(\$_SESSION[\"selected\"]).\"</p><div class=\\\"clear\\\"></div>\";"
-                . "\n\t\tglobal \$conn;\n\t\tif (!\$conn) { echo \"<p class=\\\"warnmsg\\\"><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
+                . "\n\t\tglobal \$conn;\n\t\tif (!\$conn) { echo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
                 . "\n\t\t\$cant=count(\$_SESSION[\"selected\"]);"
                 . "\n\t\t\$query=\"SELECT ";
 
         //search for selected columns to update
-        $num_fld = $page->countShowFields();
         $fields = $page->fields;
         //Constructs SQL select sentence to retrieve data to be modified
         for ($i = 0; $i < count($fields); $i++) {
@@ -380,12 +749,12 @@ class Generator {
 
         $sql_array = $sql_array . ");";
         $code .= " FROM {$app->getSchema()}.{$page->getTable()} WHERE "
-                . "{$this->getPK($app->getDBName(), $page->getTable())}=\";"
+                . self::getPK($app->getDBName(), $page->getTable()) . "=\";"
                 . "\n\t\tif(\$cant>1) \$query=\$query.\"{\$_SESSION[\"selected\"][\$uindex]}\";"
                 . "\n\t\telse \$query=\$query.\"{\$_SESSION[\"selected\"][0]}\";"
                 . "\n\t\t\$rs=pg_query(\$conn,\$query);"
-                . "\n\t\tif (!\$rs) {\n\t\t\techo \"<strong>{$lang['strerrorquery']}</strong>\"; exit;\n\t\t}"
-                . "\n\t\t\$row = pg_fetch_array(\$rs);\n\t\tif(!\$row){echo \"{$lang['strrecordnoexist']}\";exit;}\n\t\t"
+                . "\n\t\tif (!\$rs) {\n\t\t\techo \"<strong>{$app->lang['strerrorquery']}</strong>\"; exit;\n\t\t}"
+                . "\n\t\t\$row = pg_fetch_array(\$rs);\n\t\tif(!\$row){echo \"{$app->lang['strrecordnoexist']}\";exit;}\n\t\t"
                 . "echo \"<input type=\\\"hidden\\\" name=\\\"operation\\\" value=\\\"update\\\" />\n\t\t"
                 . "<input type=\\\"hidden\\\" name=\\\"uindex\\\" value=\\\"\".\$uindex.\"\\\" />"
                 . "<table id=\\\"table\\\">\n\t\t<thead><tr><th scope=\\\"row\\\" class=\\\"table-topleft\\\">"
@@ -403,7 +772,7 @@ class Generator {
                             . "'{$this->getPK($app->getDBName(), $fields[$i]->getRemoteTable())}','{$fields[$i]->getRemoteField()}',\$row[{$show_index}]); echo \"</select></td></tr>";
                 } else {
                     //checks if attribute is null or if it is date
-                    $class_code = $this->generateValidationClasses($page->getTable(), $fields[$i]->getName());
+                    $class_code = self::generateValidationClasses($page->getTable(), $fields[$i]->getName());
                     $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" {$class_code} value=\\\"\".htmlspecialchars(\$row[{$show_index}]).\"\\\"/></td></tr>";
                 }
                 $show_index = $show_index + 1;
@@ -411,13 +780,13 @@ class Generator {
         }
         $code .= "\n\t\t</tbody>\n\t</table>";
         //Prints operation buttons
-        $buttons_code = $this->generateButtonsCode($app, $page);
-        $only_right_buttons = $this->generateButtonsCode($app, $page, true);
+        $buttons_code = self::generateButtonsCode($app, $page);
+        $only_right_buttons = self::generateButtonsCode($app, $page, true);
         //Code for print foreing key values in a select input
         $printfk_code = "global \$conn;\n\t"
-                . "if (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
+                . "if (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
                 . "\n\t\$rs=pg_query(\$conn,\"SELECT \".\$pk.\",\".\$field.\" FROM \".\$schema.\".\".\$table);"
-                . "\n\tif (!\$rs) {\n\t\techo \"<strong>{$lang['strerrorquery']}</strong>\"; exit;\n\t}"
+                . "\n\tif (!\$rs) {\n\t\techo \"<strong>{$app->lang['strerrorquery']}</strong>\"; exit;\n\t}"
                 . "\n\twhile (\$row = pg_fetch_array(\$rs)){\n\t\t"
                 . "echo \"<option value=\\\"{\$row[0]}\\\"\";"
                 . "\n\t\tif(\$row[0]==\$selected_pk) echo\" selected=\\\"selected\\\" \";"
@@ -429,15 +798,15 @@ class Generator {
                 . "if(\$_POST[\$update_column]==\"\")\n\t\t\t\$sql_args=\$sql_args.\"{\$update_column}=NULL,\";"
                 . "\n\t\telse\n\t\t\t\$sql_args=\$sql_args.\"{\$update_column}='{\$_POST[\$update_column]}',\";\n\t}"
                 . "\n\tif(substr(\$sql_args, -1)==\",\")\$sql_args[strlen(\$sql_args)-1]=\" \";"
-                . "\n\tif (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
+                . "\n\tif (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
                 . "\n\t\$rs=pg_query(\$conn,\"{$sql} {\$sql_args} {$sql_where}\");"
-                . "\n\tif (!\$rs) {\n\t\techo \"<p></p><p class=\\\"warnmsg\\\"><strong>{$lang['strupdatefail']}</strong><br />\".pg_last_error(\$conn).\"</p>\";"
+                . "\n\tif (!\$rs) {\n\t\techo \"<p></p><p class=\\\"warnmsg\\\"><strong>{$app->lang['strupdatefail']}</strong><br />\".pg_last_error(\$conn).\"</p>\";"
                 . "\n\t\tpg_free_result(\$rs);\n\t\treturn false;\n\t}"
                 . "\n\telse{\n\t\tpg_free_result(\$rs);\n\t\treturn true;\n\t}";
 
         /*         * *Box for request for a pk if none was sent* */
         //Search for the report page's filename to create a link to go back
-        $tbl_op = $this->getTableOperations($app, $page->getTable());
+        $tbl_op = self::getTableOperations($app, $page->getTable());
         $report_filename = '';
 
         if (count($tbl_op) > 0) {
@@ -452,28 +821,21 @@ class Generator {
         else
             $gobacklink = '';
 
-        $pk_request = "<p class=\\\"warnmsg\\\"><span>{$lang['strnoupdateargs']}<br />{$gobacklink}</span></p>
-                    <p>{$lang['strselupdatetxt']}</p>
-                    <input type=\\\"hidden\\\" name=\\\"operation\\\" value=\\\"edit\\\" />
-                    <div class=\\\"centerdiv input-key\\\">
-                        <div>{$lang['strprimarykey']}&nbsp;:</div>
-                        <div><input type=\\\"text\\\" class=\\\"required\\\" name=\\\"selected\\\" value=\\\"\\\" /></div>
-                    </div>
-                    <div class=\\\"full-wide\\\"><div class=\\\"center-buttons\\\">
-                        <a class=\\\"button sendForm\\\" href=\\\"#u\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['stredit']}</span></a>
+        $pk_request = "<div class=\\\"full-wide\\\"><div class=\\\"center-buttons\\\">
+                        <a class=\\\"button sendForm\\\" href=\\\"#u\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strupdate']}</span></a>
                     </div></div>{$only_right_buttons}";
         $code .= "{$buttons_code}\";\n\t\t}\n\tif(!isset(\$_POST[\"operation\"])|| (count(\$_POST[\"selected\"])<1)){"
                 . "\n\t\techo \"{$pk_request}\";\n\t}";
 
         //Creates the code function
-        $function_code .= $this->getFunctionString("printRowsRadio", "", "return null;");
-        $function_code .= $this->getFunctionString("printFilterBox", "", "return null;");
-        $function_code .= $this->getFunctionString("printFormAction", "", "echo \"{$page->getFilename()}\";");
-        $function_code .= $this->getFunctionString("updateRow", "\$id", $update_code);
+        $function_code .= self::getFunction("printRowsRadio", "", "return null;");
+        $function_code .= self::getFunction("printFilterBox", "", "return null;");
+        $function_code .= self::getFunction("printFormAction", "", "echo \"{$page->getFilename()}\";");
+        $function_code .= self::getFunction("updateRow", "\$id", $update_code);
         $args = array("\$schema,\$table", "\$pk", "\$field", "\$selected_pk");
-        $function_code .= $this->getFunctionString("printFKOptions", $args, $printfk_code);
-        $function_code .= $this->generateOperationFunction(null, $code);
-        return $this->generatePageFile($function_code, $path . $page->getFilename(), $app->getThemeName(), $page);
+        $function_code .= self::getFunction("printFKOptions", $args, $printfk_code);
+        $function_code .= self::generateOperationFunction(null, $code);
+        return self::generatePageFile($page, $path , $page->getFilename() , $function_code);
     }
 
     /**
@@ -482,7 +844,7 @@ class Generator {
      * @param $code string with the function's code
      * @return string with generated function
      */
-    private function generateOperationFunction($args, $code) {
+    public static function generateOperationFunction($args, $code) {
         $strfunction = "\n\nfunction pageOperation(";
         $argc = count($args);
         $i = 0;
@@ -501,14 +863,15 @@ class Generator {
 
     /**
      * This function generates the page file
-     * @param $code string with the operation's function code
-     * @param $filename page's filename
      * @param $app  current application object
+     * @param path application's file path
+     * @param $filename page's filename
+     * @param $code string with the operation's function code
      * @return true if everything went ok
      */
-    private function generatePageFile($code, $filename, $theme_name, Pages $page) {
+    public static function generatePageFile(Pages $page, $path, $filename, $code) {
         //Retrieves all content from current theme's file
-        $fTheme = file_get_contents("./themes/appgen/" . $theme_name . "/index.php");
+        $fTheme = file_get_contents($path . "/index.php");
 
         $title = $page->getTitle();
         $descr = $page->getDescription();
@@ -522,12 +885,12 @@ class Generator {
         if (empty($txt))
             $txt = '&nbsp;';
 
-        $functions = $this->getFunctionString("printPageTitle", "", "echo '{$title}';");
-        $functions .= $this->getFunctionString("printPageDescr", "", "echo '{$descr}';");
-        $functions .= $this->getFunctionString("printPageText", "", "echo '{$txt}';");
+        $functions = self::getFunction("printPageTitle", "", "echo '{$title}';");
+        $functions .= self::getFunction("printPageDescr", "", "echo '{$descr}';");
+        $functions .= self::getFunction("printPageText", "", "echo '{$txt}';");
 
         $fTheme = "<?php\n" . $functions . $code . "\n?>\n" . $fTheme;
-        $fPage = fopen($filename, "w");
+        $fPage = fopen($path . '/' . $filename, "w");
         if (!$fPage)
             return false;
         fwrite($fPage, $fTheme);
@@ -543,14 +906,14 @@ class Generator {
      * @param $noMainButtons flag to check if print main action buttons or not
      * @return string html code for buttons
      */
-    private function generateButtonsCode(Application $app, Pages $page, $noMainButtons = false) {
+    public static function generateButtonsCode(Application $app, Pages $page, $noMainButtons = false) {
         global $lang;
         $buttons_code = '';
-        $tbl_op = $this->getTableOperations($app, $page->getTable());
+        $tbl_op = self::getTableOperations($app, $page->getTable());
 
         if (!$noMainButtons) {
             $buttons_code = "\n\t<div class=\\\"full-wide\\\"><div class=\\\"center-buttons\\\">";
-            switch ($page->getOperation()) {
+            switch ($page->operation) {
                 case "delete": $buttons_code .= "\t<a id=\\\"deleteButton\\\" class=\\\"button sendForm\\\" href=\\\"#d\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strdelete']}</span></a>";
                     break;
                 case "insert": $buttons_code .= "\t<a id=\\\"insertButton\\\" class=\\\"button sendForm\\\" href=\\\"#i\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strinsert']}</span></a>";
@@ -566,257 +929,29 @@ class Generator {
         $buttons_code .= "\n\t<div class=\\\"clear\\\">";
 
         for ($i = 0; $i < count($tbl_op["operations"]); $i++) {
-            $cur_op = $page->getOperation();
+            $cur_op = $page->operation;
             if ($tbl_op['operations'][$i] != $cur_op[0])
                 switch ($tbl_op['operations'][$i]) {
-                    case "d":
+                    case "delete":
                         if ($cur_op == 'update')
                             $buttons_code .= "\n\t\t<a id=\\\"deleteButton\\\" class=\\\"button\\\" href=\\\"#d\\\" rel=\\\"{$tbl_op['filenames'][$i]}\\\"><span>{$lang['strdelete']}</span></a>";
                         if ($cur_op == 'browse')
                             $buttons_code .= "\n\t\t<a id=\\\"deleteReportButton\\\" class=\\\"button\\\" href=\\\"#d\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strdelete']}</span></a>";
                         break;
-                    case "i":
+                    case "create":
                         $buttons_code .= "\n\t\t<a id=\\\"insertButton\\\" class=\\\"button\\\" href=\\\"{$tbl_op['filenames'][$i]}\\\"><span>{$lang['strinsert']}</span></a>";
                         break;
-                    case "u":
+                    case "update":
                         if ($cur_op != 'insert')
                             $buttons_code .= "\n\t\t<a id=\\\"updateButton\\\" class=\\\"button\\\" href=\\\"#i\\\" rel=\\\"{$tbl_op['filenames'][$i]}\\\"><span>{$lang['stredit']}</span></a>";
                         break;
-                    case "b":
+                    case "report":
                         $buttons_code .= "\n\t\t<a id=\\\"reportButton\\\" class=\\\"button\\\" href=\\\"{$tbl_op['filenames'][$i]}\\\"><span>{$lang['strreports']}</span></a>";
                         break;
                 }
         }
         $buttons_code .= "\n\t</div>\n\t</div>";
         return $buttons_code;
-    }
-
-    /**
-     * Returns an array of operations that an applications do in a specific table
-     * @param $app an application object to get its operations
-     * @param $table name of the table
-     * @param $filename_array optional array to store page's filename of operations array
-     * @return array of operations (b=browse, d=deletion, i=insert, u=update) and
-     *               each respective filename 
-     */
-    private function getTableOperations(Application $app, $table) {
-        global $misc;
-        $tbl_op = array();
-        $tbl_op['operations'] = array();
-        $tbl_op['filenames'] = array();
-
-        $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = "SELECT p.page_filename, p.operation FROM appgen.pages p, appgen.page_tables pt,appgen.application a "
-                . "WHERE pt.table_name='{$table}' AND a.app_id='{$app->getId()}' "
-                . "AND p.app_id=a.app_id AND pt.pages_page_id=p.page_id";
-        $rs = $driver->selectSet($sql);
-
-        $i = 0;
-        foreach ($rs as $row) {
-            $tbl_op['operations'][] = $rs->fields['operation'];
-            $tbl_op['filenames'][] = $rs->fields['page_filename'];
-            $i++;
-        }
-        return $tbl_op;
-    }
-
-    /**
-     * Prints options for a html combo-box
-     * @param $array an array with values for the combo box
-     * @param $select compare value to print select
-     * @return string with html code for options
-     */
-    public function printOptions($array, $select) {
-        $html_code = '';
-        $i = 0;
-        foreach ($array as $value) {
-            $html_code = $html_code . "\n\t\t\t\t<option \";";
-            $html_code = $html_code . " if({$select}=='{$value}') echo \" selected=\\\"selected\\\"\"; echo \" ";
-            $html_code = $html_code . ">{$value}</option>";
-            $i++;
-        }
-        return $html_code;
-    }
-
-    /**
-     * Prints options for a html combo-box and receives a value to select by default
-     * @param $array an array with values for the combo box
-     * @param $sel_value value of selected index
-     * @return string with html code for options
-     */
-    public function printSelOptions($array, $sel_value) {
-        $html_code = '';
-        foreach ($array as $value) {
-            $html_code .= "\n\t\t\t\t<option";
-            if ($value == $sel_value)
-                $html_code .= " selected=\"selected\"";
-            $html_code .= ">{$value}</option>\n";
-        }
-        return $html_code;
-    }
-
-    /**
-     * Prints error and returns false due to error
-     *
-     * @return bool false due to error
-     */
-    private function printError($error_text) {
-        global $misc;
-        $misc->printMsg($error_text);
-        return false;
-    }
-
-    /**
-     * Returns a string with a function code to write it on a file
-     * @param $name function's name
-     * @param $args an array with the function arguments
-     * @param $code the code inside the function, if it has return include it too
-     * @return string with complete function code
-     */
-    public function getFunctionString($name, $args, $code) {
-        $strfunction = "\n\nfunction {$name}(";
-        $argc = count($args);
-        $i = 0;
-        if (is_array($args))
-            foreach ($args as $arg) {
-                $strfunction = $strfunction . $arg;
-                if ($i < $argc - 1)
-                    $strfunction = $strfunction . ",";
-                $i++;
-            }
-        else
-            $strfunction = $strfunction . $args;
-
-
-        $strfunction .= "){\n";
-        $strfunction .= "\t" . $code;
-        $strfunction .= "\n}\n";
-
-        return $strfunction;
-    }
-
-    /**
-     * Function to generate a page from a Page object
-     * @param $page desired page object to generate its file
-     * @return true if everything went ok
-     * @return false if something bad happened like an error
-     */
-    public function generatePage($path, Application $app, Pages $page) {
-        switch ($page->getOperation()) {
-            case "browse": return $this->generateReportPage($path, $app, $page, false);
-                break;
-            case "insert": return $this->generateInsertPage($path, $app, $page);
-                break;
-            case "update": return $this->generateUpdatePage($path, $app, $page);
-                break;
-            case "delete": return $this->generateReportPage($path, $app, $page, true);
-                break;
-        }
-        return true;
-    }
-
-    /**
-     * This function validates parameters from a browse page
-     * @return bool of accepted or not parameters from a browse page
-     */
-    public function validateParameters() {
-        global $lang, $misc;
-
-        //Checks if page's filename is not null or doesn't have extension
-        if (($_POST['page_filename'] == "") || (substr($_POST['page_filename'], -4) != ".php") || !isset($_POST["page_filename"]))
-            return $this->printError($lang['strerrpagefield']);
-
-        //Checks if page title is not null
-        if ($_POST["page_title"] == "" || !isset($_POST["page_title"]))
-            return $this->printError($lang['strnopagetitle']);
-
-        //Checks if each filename has a .php extension
-        foreach ($_POST["display"] as $dis_name) {
-            if ($dis_name == "")
-                return printError($lang['strnodisplayname']);
-        }
-        return true;
-    }
-
-    public function createZipFile($source, $destination) {
-        if (extension_loaded('zip') === true) {
-            if (file_exists($source) === true) {
-                $zip = new ZipArchive();
-
-                if ($zip->open($destination, ZIPARCHIVE::CREATE) === true) {
-                    $source = realpath($source);
-
-                    if (is_dir($source) === true) {
-                        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($source), RecursiveIteratorIterator::SELF_FIRST);
-
-                        foreach ($files as $file) {
-                            $file = realpath($file);
-
-                            if (is_dir($file) === true) {
-                                $zip->addEmptyDir(str_replace($source . '/', '', $file . '/'));
-                            } else if (is_file($file) === true) {
-                                $zip->addFromString(str_replace($source . '/', '', $file), file_get_contents($file));
-                            }
-                        }
-                    } else if (is_file($source) === true) {
-                        $zip->addFromString(basename($source), file_get_contents($source));
-                    }
-                    return $zip->close();
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Recursive function to copy elements from a folder to other
-     *
-     * @param $src source file's path
-     * @param $dst destion of files
-     */
-    public static function recursive_copy($src, $dst) {
-        $dir = opendir($src);
-
-        if (file_exists($dst)) { //If directory exists deletes it
-            foreach (glob($dst . '/*') as $file) {
-                if (is_dir($file))
-                    rrmdir($file);
-                else
-                    unlink($file);
-            }
-            rmdir($dst);
-        }
-
-        @mkdir($dst);
-
-        while (false !== ( $file = readdir($dir))) {
-            if (( $file != '.' ) && ( $file != '..' ) && ($file != 'thumbnail.png')) {
-                if (is_dir($src . '/' . $file)) {
-                    $this->recursive_copy($src . '/' . $file, $dst . '/' . $file);
-                } else {
-                    copy($src . '/' . $file, $dst . '/' . $file);
-                }
-            }
-        }
-        closedir($dir);
-    }
-
-    /**
-     * Returns an array of detected themes
-     *
-     * @return string array of detected themes
-     * @access public
-     */
-    public static function getThemes() {
-        $themes = array();
-        $dir = dir("./plugins/CrudGen/themes/");
-
-        while ($folder = $dir->read()) {
-            if (($folder != '.') && ($folder != '..'))
-                $themes[] = $folder;
-        }
-        $dir->close();
-        return $themes;
     }
 
 }

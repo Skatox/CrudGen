@@ -7,18 +7,15 @@ class Pages {
     private $page_id;
     private $page_filename;
     private $page_title;
-    private $operation;
     private $descr;
     private $date_created;
     private $in_main_menu;
     private $table;
     private $page_text;
+    public $operation;
     public $fields = array();
 
     public function _construct() {
-        global $lang;
-        $this->page_title = $lang['strnone'];
-        $this->completed = false;
         $this->descr = '';
         $this->page_text = '';
     }
@@ -122,14 +119,6 @@ class Pages {
     }
 
     /**
-     * Returns the operation of this page
-     * @return string of this page's operation
-     */
-    public function getOperation() {
-        return $this->operation;
-    }
-
-    /**
      * Sets this page's main database operation
      * @param $op operation
      */
@@ -228,7 +217,6 @@ class Pages {
         $this->in_main_menu = $value ? "t" : "f";
     }
 
-
     /**
      * This function adds into the DB all fields from this page
      *
@@ -253,7 +241,7 @@ class Pages {
         $driver = $misc->getDatabaseAccessor("phppgadmin");
 
         $sql = sprintf("INSERT INTO crudgen.page_tables (table_name, pages_page_id) "
-                . " VALUES ('%s',%d) RETURNING page_tables_id",$this->table,$page_id);
+                . " VALUES ('%s',%d) RETURNING page_tables_id", $this->table, $page_id);
 
         return $driver->selectField($sql, "page_tables_id");
     }
@@ -271,8 +259,7 @@ class Pages {
         $driver = $misc->getDatabaseAccessor("phppgadmin");
 
         $sql = sprintf("INSERT INTO crudgen.pages (page_filename, page_title, operation,page_text,app_id) "
-                . "VALUES ('%s','%s','" . substr($this->operation, 0, 1) . "','%s', %d) RETURNING page_id",
-                $this->page_filename,$this->page_title,$this->page_text,$app_id);
+                . "VALUES ('%s','%s','" . substr($this->operation, 0, 1) . "','%s', %d) RETURNING page_id", $this->page_filename, $this->page_title, $this->page_text, $app_id);
 
         $this->page_id = $driver->selectField($sql, "page_id");
         return $this->page_id;
@@ -288,7 +275,7 @@ class Pages {
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
         $sql = sprintf("SELECT page_filename, page_title,descr, date_created,operation,in_main_menu,page_text,app_id "
-                . "FROM crudgen.pages WHERE page_id=%d",$page_id);
+                . "FROM crudgen.pages WHERE page_id=%d", $page_id);
         $rs = $driver->selectSet($sql);
 
         //Saves page related info in this object
@@ -302,20 +289,25 @@ class Pages {
         $this->in_main_menu = $rs->fields['in_main_menu'];
         $this->page_text = $rs->fields['page_text'];
 
+
         //fix operation variable 'cause DB only stores first character
         switch ($this->operation) {
-            case "c": $this->operation = "report";
+            case "c":
+                $this->operation = "report";
                 break;
-            case "r": $this->operation = "create";
+            case "r":
+                $this->operation = "create";
                 break;
-            case "u": $this->operation = "update";
+            case "u":
+                $this->operation = "update";
                 break;
-            case "d": $this->operation = "delete";
+            case "d":
+                $this->operation = "delete";
                 break;
         }
 
         //Retreives table's name
-        $sql = sprintf("SELECT page_tables_id, table_name FROM crudgen.page_tables WHERE pages_page_id=%d",$page_id);
+        $sql = sprintf("SELECT page_tables_id, table_name FROM crudgen.page_tables WHERE pages_page_id=%d", $page_id);
         $rs = $driver->selectSet($sql);
         $this->table = $rs->fields['table_name'];
         $table_id = $rs->fields['page_tables_id'];
@@ -336,12 +328,10 @@ class Pages {
         // Creates a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
         $sql = sprintf("UPDATE crudgen.pages SET page_filename='%s',page_title='%s', page_text='%s',descr='%s',"
-                . "in_main_menu=" . $this->isInMainMenuAsString() . " WHERE page_id = %d",
-                $this->page_filename,$this->page_title,$this->page_text,$this->descr, $this->page_id);
+                . "in_main_menu=" . $this->isInMainMenuAsString() . " WHERE page_id = %d", $this->page_filename, $this->page_title, $this->page_text, $this->descr, $this->page_id);
 
         return $driver->execute($sql);
     }
-
 
     /**
      * This functions deletes this object information in the database
@@ -353,7 +343,7 @@ class Pages {
 
         // Creates a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = sprintf("DELETE FROM crudgen.pages WHERE page_id=%d",$page_id);
+        $sql = sprintf("DELETE FROM crudgen.pages WHERE page_id=%d", $page_id);
         return $driver->execute($sql);
     }
 
@@ -377,18 +367,6 @@ class Pages {
             $rs = $this->update();
             return $rs;
         }
-    }
-
-    /**
-     * Updates some POST variable with this page information, so it can be used
-     * in the generation process
-     */
-    public function updatePagePostInfo() {
-        $_POST['page_title'] = $this->getTitle();
-        $_POST['page_filename'] = $this->getFilename();
-        $_POST["page_descr"] = $this->getDescription();
-        $_POST["page_text"] = $this->setPageText();
-        $_POST['on_main_menu'] = $this->in_main_menu ? true : null;
     }
 
     /*
@@ -417,7 +395,7 @@ class Pages {
      */
     public static function getPages() {
         $genpages = array();
-        
+
         foreach ($this->pages as $page)
             $genpages[] = $page;
 
@@ -460,5 +438,7 @@ class Pages {
         if (!isset($_POST["page_text"]))
             $_POST["page_text"] = $this->getPageText();
     }
+
 }
+
 ?>

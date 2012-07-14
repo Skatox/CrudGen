@@ -101,8 +101,18 @@
     $lang['strtheme'] = 'Theme';
     $lang['strgenerating'] = 'Generating';
     $lang['strpreview'] = 'Preview';
-    
-    
+    $lang['strphplibrary'] = 'PHP Library';
+    $lang['strpgsql'] = 'pgsql';
+    $lang['strpdo'] = 'pdo_pgsql';   
+    $lang['strinsertsuccess'] = 'The information was added successfully';
+    $lang['strinsertfail'] = 'There was a problem when adding the information';
+    $lang['strupdatesuccess'] = 'Information edited successfully';
+    $lang['strrecordnoexist'] = 'Selected record doesn\'t exists';
+    $lang['strupdatefail'] = 'There was a problem when editing the information';
+    $lang['strasc'] = 'Ascending';
+    $lang['strdesc'] = 'Descending';
+    $lang['strsortby'] = 'Sort by';
+    $lang['strsrows'] = 'Rows';
     
     //Errors
     $lang['strerrnotbl'] = 'Selected schema is empty, you must have some tables to create an application.';
@@ -127,6 +137,10 @@
     $lang['strselpagetodelete'] = 'Select pages to be deleted';
     $lang['strselapptodelete'] = 'Select applications to be deleted';
     $lang['strerrnoappid'] = 'Missing application\'s ID';
-
+    $lang['strnocommonfile'] = 'There was a problem when creating the common file.';
+    $lang['strloginerror'] = 'Login failed! Check if username and password are correct.';
+    $lang['strerrpagegen'] = 'There was an error when generating ';
+    $lang['strerrordbconn'] = 'There is no connection to the database';
+    $lang['strerrorquery'] = 'There was a problem when executing the query';
     
 ?>

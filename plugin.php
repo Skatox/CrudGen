@@ -5,7 +5,6 @@ include_once('plugins/CrudGen/classes/Application.php');
 include_once('plugins/CrudGen/classes/Columns.php');
 include_once('plugins/CrudGen/classes/Pages.php');
 include_once('plugins/CrudGen/classes/Generator.php');
-include_once('plugins/CrudGen/classes/Security.php');
 
 class CrudGen extends Plugin {
 
@@ -1227,7 +1226,7 @@ class CrudGen extends Plugin {
         echo "<td class=\"data required\">" . $page->getTable() . "</td></tr>";
         echo "\n\t<tr>\n\t<th class=\"data left\"> {$this->lang['stroperation']}</th>";
         echo "<td class=\"data\">";
-        switch ($page->getOperation()) {
+        switch ($page->operation) {
             case "create":
                 echo $this->lang['strcreate'];
                 break;
@@ -1289,7 +1288,7 @@ class CrudGen extends Plugin {
             //Checkbox
             echo "\n\t\t\t<td style=\"text-align:center;\"><input type=\"checkbox\" name=\"show[{$field->getName()}]\" value=\"selected\"";
 
-            if ($page->getOperation() == "create") {
+            if ($page->operation == "create") {
                 $attrs = $data->getTableAttributes($page->getTable());
                 $nn = false;
                 while (!$attrs->EOF) {
@@ -1318,7 +1317,7 @@ class CrudGen extends Plugin {
                 $first_entry = null;
 
                 echo "<select style=\"width:100%;\"name=\"fk_field[{$field->getName()}][]\">";
-                $first_entry = ($page->getOperation() == "report") || ($page->getOperation() == "delete") ? $this->lang['strfkvalue'] : $this->lang['strmaninp'];
+                $first_entry = ($page->operation == "report") || ($page->operation == "delete") ? $this->lang['strfkvalue'] : $this->lang['strmaninp'];
                 echo "\n\t\t\t\t<option value=\"{$first_entry}\">{$first_entry}</option>\n";
 
                 //Builds an array with table's column's name
@@ -1532,6 +1531,12 @@ class CrudGen extends Plugin {
             echo "<form id=\"genops\" method=\"post\" action=\"\">\n";
             echo "\n\t\t<input type=\"hidden\" name=\"action\" value=\"generate_app\" />";
             echo "<table>\n";
+            echo "\t<tr>\n\t\t<th class=\"data left required\">{$this->lang['strphplibrary']}</th>\n";
+            echo "\t\t<td class=\"data\">";
+            echo "<select name=\"app_library\">";
+            echo "<option value=\"pgsql\">{$this->lang['strpgsql']}</option>";
+            echo "<option value=\"pdo\">{$this->lang['strpdo']}</option>";
+            echo "</select></td></tr>";
             echo "\t<tr>\n\t\t<th class=\"data left required\">{$this->lang['strtheme']}</th>\n";
             echo "\t\t<td class=\"data\">";
             echo "<select id=\"app_theme\" name=\"app_theme\" onchange=\"updatePreview()\" >";
@@ -1556,6 +1561,7 @@ class CrudGen extends Plugin {
 
             $misc->printFooter();
         } else {
+            $app->lang = $this->lang;
             $app->generate();
         }
     }
