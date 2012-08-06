@@ -32,7 +32,7 @@ class Application {
      * Adds a new page to this application
      * @param $page Page object to add
      */
-    public function addPage(Pages $page) {
+    public function addPage(Page $page) {
         $this->pages[] = $page;
     }
 
@@ -81,6 +81,8 @@ class Application {
             $functions .= Generator::getFunction("printTitle", "", "\t\techo '{$this->app_name}';");
             $functions .= Generator::getFunction("printDescr", "", "\t\techo '{$this->descr}';");
             $functions .= Generator::getFunction("printMenu", "", $this->getMenu());
+            $functions .= Generator::getFunction("printError", "\$msg", "\t\t".'echo "<div class=\"warnmsg\">{$msg}</div>";');
+            $functions .= Generator::getFunction("printMsg", "\$msg", "\t\t".'echo "<div class=\"msg\">{$msg}</div>";');
             $functions .= Generator::getAuthCode($this); //For none just creates the db connection
 
             fwrite($commonfile, "<?php");
@@ -442,17 +444,18 @@ class Application {
      * @return string with the html code for the main menu
      */
     private function getMenu() {
-        global $lang;
         $menu_code = "";
 
         foreach ($this->pages as $page) {
-            if ($page->isInMainMenu()) {
-                $menu_code.="\n\techo '<li><a href=\"{$page->getFilename()}\" class=\"menu-link\">";
+            if ($page->inMainMenu()) {
+                $menu_code.="\n\t\techo '<li><a href=\"{$page->getFilename()}\" class=\"menu-link\">";
                 $menu_code.=htmlspecialchars($page->getTitle()) . "</a></li>';";
             }
         }
+        
         if (!empty($menu_code))
-            $menu_code = "echo '<ul>';" . $menu_code . "\n\techo '</ul>';";
+            $menu_code = "\t\techo '<ul class=\"main-menu\">';" . $menu_code . "\n\t\techo '</ul>';";
+        
         return $menu_code;
     }
 
@@ -562,7 +565,7 @@ class Application {
         $sql = sprintf("SELECT page_id FROM crudgen.pages WHERE app_id=%d", $this->app_id);
         $rs = $driver->selectSet($sql);
         while (!$rs->EOF) {
-            $page = new Pages();
+            $page = new Page();
             $page->load($rs->fields["page_id"]);
             $this->addPage($page);
             $rs->movenext();

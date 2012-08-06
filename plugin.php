@@ -3,7 +3,7 @@
 require_once('classes/Plugin.php');
 include_once('plugins/CrudGen/classes/Application.php');
 include_once('plugins/CrudGen/classes/Columns.php');
-include_once('plugins/CrudGen/classes/Pages.php');
+include_once('plugins/CrudGen/classes/Page.php');
 include_once('plugins/CrudGen/classes/Generator.php');
 
 class CrudGen extends Plugin {
@@ -191,7 +191,7 @@ class CrudGen extends Plugin {
      * @param $page page to print its fields
      * @param $selected_field index of selected field
      */
-    private function printOptionsField(Pages $page, $selected_field) {
+    private function printOptionsField(Page $page, $selected_field) {
         $fields_count = count($page->fields);
 
         for ($i = 1; $i <= $fields_count; $i+= 1) {
@@ -1044,7 +1044,7 @@ class CrudGen extends Plugin {
                         if (isset($_SESSION['crudgen_' . $operation])) {
                             foreach ($_SESSION['crudgen_' . $operation] as $table_name => $table) {
                                 if (count($_SESSION['crudgen_' . $operation]) > 0) {
-                                    $page_obj = new Pages();
+                                    $page_obj = new Page();
                                     $filename = $prefix . trim(str_replace("'", "", $table_name)) . ".php";
 
                                     //Write generated code to file
@@ -1127,7 +1127,7 @@ class CrudGen extends Plugin {
         global $lang, $misc;
 
         $app_id = $_REQUEST['app_id'];
-        $pages = Pages::getApplicationPages($app_id, $this->lang);
+        $pages = Page::getApplicationPages($app_id, $this->lang);
 
         $misc->printHeader($lang['strdatabase']);
         $misc->printBody();
@@ -1205,7 +1205,7 @@ class CrudGen extends Plugin {
         $app = new Application();
         $app->load($app_id);
 
-        $page = new Pages();
+        $page = new Page();
         $page->load($page_id);
         $page->buildPost();
 
@@ -1249,7 +1249,7 @@ class CrudGen extends Plugin {
         echo "\"  size=\"33\" /></td></tr>";
         echo "\n\t<tr>\n\t<th class=\"data left\">{$this->lang['strpagemainmenu']}</th>";
         echo "<td class=\"data\"><input type=\"checkbox\" name=\"on_main_menu\" id=\"on_main_menu\" value=\"selected\"";
-        if (isset($_POST['on_main_menu']['selected']))
+        if (isset($_POST['on_main_menu']))
             echo " checked=\"checked\"";
         echo "/>&nbsp;&nbsp;<label for=\"on_main_menu\">{$this->lang['strpageonmainmenu']}</label></td></tr>";
         echo "\n\t<tr>\n\t<th class=\"data left\">{$this->lang['strdescr']}</th>";
@@ -1360,7 +1360,7 @@ class CrudGen extends Plugin {
         if (!empty($_REQUEST['cancel']))
             return $this->list_pages();
 
-        $page = new Pages();
+        $page = new Page();
 
         //Update common parameters
         $page->load($_REQUEST['page_id']);
@@ -1484,7 +1484,7 @@ class CrudGen extends Plugin {
                 $flag = 0;
 
                 foreach ($_POST['page_id'] as $page_id) {
-                    $flag = Pages::delete($page_id);
+                    $flag = Page::delete($page_id);
 
                     if ($flag === 1) {
                         $msg = $this->lang['strerrdelpage'];
@@ -1495,7 +1495,7 @@ class CrudGen extends Plugin {
                     $msg = $this->lang['strdeletedpages'];
             }
             else
-                $msg = ( Pages::delete($_REQUEST["page_id"]) == 0) ? $this->lang['strdeletedpage'] : $this->lang['strerrdelpage'];
+                $msg = ( Page::delete($_REQUEST["page_id"]) == 0) ? $this->lang['strdeletedpage'] : $this->lang['strerrdelpage'];
 
             $this->list_pages($msg);
         }

@@ -1,6 +1,6 @@
 <?php
 
-class Pages {
+class Page {
     /*     * * Attributes: ** */
 
     private $app_id;
@@ -48,7 +48,7 @@ class Pages {
      * This function sorts this page's fields by its order
      * @return bool if operation was a success
      */
-    public function sortFieldsByOrder() {
+    public function sortFields() {
         $index = array();
         foreach ($this->fields as $field) {
             $index[] = $field->getOrder();
@@ -190,18 +190,15 @@ class Pages {
      *
      * @return bool  showing if page is on main menu;
      */
-    public function isInMainMenu() {
-        switch ($this->in_main_menu) {
-            case "f": return false;
-            case "t": return true;
-        }
+    public function inMainMenu() {
+        return $this->in_main_menu == 't' ?  true : false;
     }
 
     /**
      * Returns if a page should be show in the main menu for storing in the DB
      * @return string of $this->in_main_menu
      */
-    public function isInMainMenuAsString() {
+    public function inMainMenuAsString() {
         switch ($this->in_main_menu) {
             case "f": return "false";
             case "t": return "true";
@@ -223,9 +220,8 @@ class Pages {
      * @param $tables_id wich stores this page's table databases id
      */
     public function saveColumns($table_id) {
-        foreach ($this->fields as $column) {
+        foreach ($this->fields as $column)
             $column->save($table_id);
-        }
     }
 
     /**
@@ -293,10 +289,10 @@ class Pages {
         //fix operation variable 'cause DB only stores first character
         switch ($this->operation) {
             case "c":
-                $this->operation = "report";
+                $this->operation = "create";
                 break;
             case "r":
-                $this->operation = "create";
+                $this->operation = "report";
                 break;
             case "u":
                 $this->operation = "update";
@@ -328,7 +324,7 @@ class Pages {
         // Creates a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
         $sql = sprintf("UPDATE crudgen.pages SET page_filename='%s',page_title='%s', page_text='%s',descr='%s',"
-                . "in_main_menu=" . $this->isInMainMenuAsString() . " WHERE page_id = %d", $this->page_filename, $this->page_title, $this->page_text, $this->descr, $this->page_id);
+                . "in_main_menu=" . $this->inMainMenuAsString() . " WHERE page_id = %d", $this->page_filename, $this->page_title, $this->page_text, $this->descr, $this->page_id);
 
         return $driver->execute($sql);
     }
@@ -391,7 +387,7 @@ class Pages {
 
     /**
      * Returns an array of Pages
-     * @return Pages array with all pages
+     * @return Page array with all pages
      */
     public static function getPages() {
         $genpages = array();
@@ -429,8 +425,8 @@ class Pages {
         if (!isset($_POST['page_filename']))
             $_POST['page_filename'] = $this->getFilename();
 
-        if (!isset($_POST['on_main_menu']['selected']))
-            $_POST['on_main_menu']['selected'] = $this->isInMainMenu() ? "selected" : null;
+        if (!isset($_POST['on_main_menu']))
+            $_POST['on_main_menu'] = $this->inMainMenu() ? "selected" : null;
 
         if (!isset($_POST["page_descr"]))
             $_POST["page_descr"] = $this->getDescription();

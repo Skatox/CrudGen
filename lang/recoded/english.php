@@ -113,6 +113,7 @@
     $lang['strdesc'] = 'Descending';
     $lang['strsortby'] = 'Sort by';
     $lang['strsrows'] = 'Rows';
+    $lang['strdelsucess'] = 'Data successfully deleted';
     
     //Errors
     $lang['strerrnotbl'] = 'Selected schema is empty, you must have some tables to create an application.';
@@ -142,5 +143,6 @@
     $lang['strerrpagegen'] = 'There was an error when generating ';
     $lang['strerrordbconn'] = 'There is no connection to the database';
     $lang['strerrorquery'] = 'There was a problem when executing the query';
+    $lang['strrowdeletedbad'] =  'There was a problem when deleting the data';
     
 ?>
