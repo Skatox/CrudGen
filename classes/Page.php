@@ -95,9 +95,9 @@ class Page {
      */
     public function getFieldsName() {
         $names = array();
-        foreach ($this->fields as $field) {
-            $names[] = $field->getName();
-        }
+        foreach ($this->fields as $field)
+            $names[$field->getName()] = $field->getDisplayName();
+        
         return $names;
     }
 
@@ -423,7 +423,7 @@ class Page {
             $_POST['page_title'] = $this->getTitle();
 
         if (!isset($_POST['page_filename']))
-            $_POST['page_filename'] = $this->getFilename();
+            $_POST['page_filename'] = $this->page_filename;
 
         if (!isset($_POST['on_main_menu']))
             $_POST['on_main_menu'] = $this->inMainMenu() ? "selected" : null;

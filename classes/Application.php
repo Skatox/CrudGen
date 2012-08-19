@@ -71,7 +71,7 @@ class Application {
      * @return bool about file creation process
      */
     public function writeCommonFile($path) {
-        global $misc;
+        global $misc, $lang;
 
         $filename = $path . "/common.php";
         $commonfile = fopen($filename, 'w');
@@ -81,10 +81,20 @@ class Application {
             $functions .= Generator::getFunction("printTitle", "", "\t\techo '{$this->app_name}';");
             $functions .= Generator::getFunction("printDescr", "", "\t\techo '{$this->descr}';");
             $functions .= Generator::getFunction("printMenu", "", $this->getMenu());
-            $functions .= Generator::getFunction("printError", "\$msg", "\t\t".'echo "<div class=\"warnmsg\">{$msg}</div>";');
-            $functions .= Generator::getFunction("printMsg", "\$msg", "\t\t".'echo "<div class=\"msg\">{$msg}</div>";');
-            $functions .= Generator::getAuthCode($this); //For none just creates the db connection
+            
+            $pag_code = Generator::generatePagination($this->lang['strgotopage']);
+            $functions .= Generator::getFunction("printPagination", array("\$nrows", "\$limit"), $pag_code);
 
+            $rows_code = Generator::generateReportRowsSelect($this->lang);
+            $functions .= Generator::getFunction("printRowsRadios", '', $rows_code);
+
+            $notificationCode = "\t\tif(isset(\$_SESSION['error'])) echo \"<div class=\\\"errorMsg\\\">{\$_SESSION['error']}</div>\";";
+            $notificationCode .= "\n\t\tif(isset(\$_SESSION['msg'])) echo \"<div class=\\\"message\\\">{\$_SESSION['msg']}</div>\";";            
+            $notificationCode .= "\n\t\tunset(\$_SESSION['error']);";            
+            $notificationCode .= "\n\t\tunset(\$_SESSION['msg']);";            
+            $functions .= Generator::getFunction("printMessages", '', $notificationCode);
+
+            $functions .= Generator::getAuthCode($this); //For none just creates the db connection
             fwrite($commonfile, "<?php");
             fwrite($commonfile, $functions);
             fwrite($commonfile, "\n?>");
@@ -166,18 +176,20 @@ class Application {
      * Generates all files of this application
      */
     public function generate() {
+        global $misc;
 
         $this->theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
         $this->library = isset($_REQUEST['app_library']) ? $_REQUEST['app_library'] : 'pgsql';
-        $app_folder = sys_get_temp_dir() . '/' . $this->getFolderName();
+        $app_folder = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->getFolderName();
 
         Generator::recursive_copy("plugins/CrudGen/themes/" . $this->theme, $app_folder);
         $this->writeCommonFile($app_folder);
 
-        foreach ($this->pages as $page){
+        foreach ($this->pages as $page)
             if (!Generator::generatePage($this, $page, $app_folder))
-                $misc->printMsg("{$this->lang['strerrpagegen']} {$page->getFilename()} .");
-        }
+                $misc->printMsg("{$this->lang['strerrpagegen']} {$page->getFilename()}.");
+
+        unlink($app_folder . DIRECTORY_SEPARATOR . 'index.php');
     }
 
     /**

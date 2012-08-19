@@ -21,6 +21,7 @@
     $lang['strupdate'] = 'Update';
     $lang['strreport'] = 'Report';
     $lang['strdelete'] = 'Delete';
+    $lang['stractions'] = 'Actions';
     $lang['stroperation'] = 'Operation';
     $lang['strno'] = 'No';
     $lang['stryes'] = 'Yes';
@@ -88,6 +89,7 @@
     $lang['strpageonmainmenu'] = 'Show this page on the main menu?';
     $lang['strpagecontent']= 'Content';
     $lang['strfieldname'] = 'Field';
+    $lang['strdisplay'] = 'Display';
     $lang['strdisplayname'] = 'Name to display';
     $lang['strshowinpage'] = 'Visible';
     $lang['strremotecol'] = 'Remote column';
@@ -112,8 +114,11 @@
     $lang['strasc'] = 'Ascending';
     $lang['strdesc'] = 'Descending';
     $lang['strsortby'] = 'Sort by';
-    $lang['strsrows'] = 'Rows';
+    $lang['strsrows'] = 'rows';
     $lang['strdelsucess'] = 'Data successfully deleted';
+    $lang['strsearch'] = 'Search';
+    $lang['stremptyrows'] = 'No data matching your search criteria.';
+    $lang['strgotopage'] = 'Go to page: ';
     
     //Errors
     $lang['strerrnotbl'] = 'Selected schema is empty, you must have some tables to create an application.';

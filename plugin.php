@@ -44,7 +44,7 @@ class CrudGen extends Plugin {
      */
 
     private function checkAppDB() {
-        global $lang, $data, $misc;
+        global $data, $misc;
 
         // Check to see if the ppa database exists
         $rs = $data->getDatabase("phppgadmin");
@@ -72,7 +72,7 @@ class CrudGen extends Plugin {
 
     /**
      * Prints HTML code to include plugin's js file
-     * 
+     *
      * @return string HTML code of the included javascript
      */
     private function include_js() {
@@ -241,11 +241,10 @@ class CrudGen extends Plugin {
 
     /**
      * Add plugin in the tabs
-     * 
+     *
      * @param $plugin_functions_parameters
      */
     function add_plugin_tabs(&$plugin_functions_parameters) {
-        global $misc;
 
         $tabs = &$plugin_functions_parameters['tabs'];
 
@@ -276,11 +275,8 @@ class CrudGen extends Plugin {
 
         $trail = &$plugin_functions_parameters['trail'];
 
-        if (isset($_REQUEST['app_id'])) {
+        if (isset($_REQUEST['app_id']))
             $name = Application::getAppNameFromDB($_REQUEST['app_id']);
-        } else {
-            $subject = null;
-        }
 
         if (!empty($name)) {
             $url = array(
@@ -300,7 +296,7 @@ class CrudGen extends Plugin {
             );
 
             //Changes schema's link
-            $url = array(
+            $schema_url = array(
                 'url' => 'plugin.php',
                 'urlvars' => array(
                     'plugin' => $this->name,
@@ -308,7 +304,7 @@ class CrudGen extends Plugin {
                     'action' => 'show_apps',
                 )
             );
-            $trail['schema']['url'] = $misc->printActionUrl($url, $_REQUEST, null, false);
+            $trail['schema']['url'] = $misc->printActionUrl($schema_url, $_REQUEST, null, false);
         }
     }
 
@@ -477,7 +473,7 @@ class CrudGen extends Plugin {
 
     /**
      * This functions prints a form to create an application
-     * 
+     *
      * @param string $msg text of the notification message
      */
     function create_app($msg = '') {
@@ -499,7 +495,6 @@ class CrudGen extends Plugin {
             //Print warning and offers a link for creating tables
             $this->print_no_tables();
         } else {
-            $app = new Application();
             $columns = array();
             $server_info = $misc->getServerInfo();
 
@@ -655,7 +650,6 @@ class CrudGen extends Plugin {
      * Check application's input data and stores it on the DB
      */
     function save_app() {
-        global $data, $misc, $lang;
 
         if (!empty($_REQUEST['cancel']))
             return $this->show_apps();
@@ -841,7 +835,7 @@ class CrudGen extends Plugin {
      * @param $operation string with operation to list its pages
      */
     function printDetectedPages($operation) {
-        global $lang, $misc;
+        global $misc;
 
         $lang_index = "str{$operation}pages";
 
@@ -1194,7 +1188,7 @@ class CrudGen extends Plugin {
     }
 
     /**
-     * Function to add a new page to the application 
+     * Function to add a new page to the application
      */
     function edit_page($msg = '') {
         global $lang, $misc, $data;
@@ -1274,7 +1268,13 @@ class CrudGen extends Plugin {
             //Prints field data
             echo "\n\t\t\t<tr><th class=\"data left\">{$field->getName()}</th>";
             echo "\n\t\t\t<td><input type=\"text\" name=\"display[" . $field->getName() . "]\" maxlength=\"255\" value=\"";
-            echo isset($_POST['display'][$field->getName()]) ? $_POST['display'][$field->getName()] : $field->getName();
+
+            $displayName = $field->getDisplayName();
+
+            if(empty($displayName))
+                $displayName = $field->getName();
+
+            echo isset($_POST['display'][$field->getName()]) ? $_POST['display'][$field->getName()] : $displayName;
             echo "\"  /></td>";
             echo "\n\t\t\t<td><select name=\"order[" . $field->getName() . "]\">";
 
@@ -1314,7 +1314,6 @@ class CrudGen extends Plugin {
             echo "</td><td>";
             //Means $field is a FK
             if ($fk_table != -1) {
-                $first_entry = null;
 
                 echo "<select style=\"width:100%;\"name=\"fk_field[{$field->getName()}][]\">";
                 $first_entry = ($page->operation == "report") || ($page->operation == "delete") ? $this->lang['strfkvalue'] : $this->lang['strmaninp'];
@@ -1324,10 +1323,15 @@ class CrudGen extends Plugin {
                 $attrs = $data->getTableAttributes($fk_table);
                 if ($attrs->recordCount() > 0) {
                     while (!$attrs->EOF) {
-                        echo "\n\t\t\t\t<option value=\"{$attrs->fields['attname']}";
-                        if (isset($_POST["fk_field"][$field->getName()][0]))
-                            if ($_POST["fk_field"][$field->getName()][0] == $attrs->fields['attname'])
-                                echo "selected=\"selected\"";
+                        echo "\n\t\t\t\t<option value=\"{$attrs->fields['attname']}\" ";
+
+                        $fk_name = isset($_POST["fk_field"][$field->getName()][0]) ?
+                            $_POST["fk_field"][$field->getName()][0] :
+                            $field->getRemoteField();
+
+                        if ($fk_name == $attrs->fields['attname'])
+                            echo "selected=\"selected\"";
+
                         echo "\">{$attrs->fields['attname']}</option>\n";
                         $attrs->moveNext();
                     }
@@ -1355,8 +1359,6 @@ class CrudGen extends Plugin {
     }
 
     function update_page() {
-        global $lang;
-
         if (!empty($_REQUEST['cancel']))
             return $this->list_pages();
 
@@ -1506,7 +1508,7 @@ class CrudGen extends Plugin {
 
         if (!isset($_REQUEST["app_id"]))
             return $this->show_apps($this->lang['strerrnoappid']);
-        
+
         if(isset($_REQUEST['btnCancel']))
             return $this->show_app ();
 
@@ -1568,7 +1570,7 @@ class CrudGen extends Plugin {
 
     function tree() {
 
-        global $misc, $data;
+        global $misc;
 
         $applications = Application::getApps($_REQUEST['database'], $_REQUEST['schema']);
         $reqvars = $misc->getRequestVars('crudgen');
