@@ -105,6 +105,12 @@ body{ font-family: AftaSans; overflow-x: hidden; }
 	}
 }
 
+div.login {
+	margin-left: 250px;
+    margin-top: 30px;
+    width: 400px;
+}
+
 #operation-wrapper {
 	width: 100%;
 	.filter-wrapper { float: right; margin-bottom: 20px;}
@@ -203,11 +209,14 @@ div.message, div.errorMsg {
     @include border-radius(10px);
     font-weight: bold;
 	color: #333;
-    margin: 5px auto;
     padding: 10px;
     text-align: center;
-    width: 50%;
     cursor: pointer;
+  	left: 50%;
+    margin-left: -250px;
+    margin-top: 12px;
+    position: absolute;
+    width: 500px;
 }
 
 div.errorMsg {

@@ -15,8 +15,6 @@
         </div>
         <div id="content-wrapper">
 
-        <?php printMessages() ?>
-            
         <?php if(checkAccess()) :  ?>
             
             <div id="content">
@@ -27,7 +25,7 @@
                     <?php printPageText() ?>
                 </div>
 
-                <form action="" id="operation-form" name="operation-form" method="post">
+                <form action="<?php printFormAction() ?>" id="operation-form" name="operation-form" method="post">
                     <div id="operation-wrapper">
                         <?php printActionButtons() ?>
                         <?php pageOperation() ?>
@@ -50,5 +48,6 @@
                 </a>
             </div>
         </div>
+        <?php printMessages() ?>
     </body>
 </html>

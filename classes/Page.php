@@ -95,8 +95,18 @@ class Page {
      */
     public function getFieldsName() {
         $names = array();
-        foreach ($this->fields as $field)
-            $names[$field->getName()] = $field->getDisplayName();
+        $tables = 0;
+
+        foreach ($this->fields as $field){
+            if($field->isFK()){
+                $remote_column = 'a'. $tables .'.'.$field->getRemoteField();
+                $names[$remote_column] = $field->getDisplayName();
+                $tables++;
+            }
+            else
+                $names['a.'. $field->getName()] = $field->getDisplayName();
+        }
+            
         
         return $names;
     }

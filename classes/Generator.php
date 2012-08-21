@@ -183,9 +183,6 @@ class Generator extends GenHtml {
         //Builds sql sentence
         $sql = "SELECT " . implode(",", $selects) . " FROM " . implode(",", $from);
 
-        if(count($wheres))
-            $sql .= " WHERE " . implode(" AND ", $wheres);
-
         //Adds deletion request at the begining of the code
         $code .= "\n\n\t\tif(isset(\$_REQUEST[\"operation\"])){"
             . "\n\t\t\tif(\$_REQUEST[\"operation\"] == \"delete\" "
@@ -195,10 +192,14 @@ class Generator extends GenHtml {
             . "\n\t\t\t\t\$_POST[\"term\"] = \"\";"
             . "\n\t\t\t}"
             . "\n\t\t}"
+            . "\n\n\t\tglobal \$conn;"
+            . "\n\t\t\$extra_sql=\" WHERE ";
+
+        $code .= count($wheres) ? implode("AND ", $wheres) : "1=1";
 
             //Adds Db's connection to the function's code
-            . "\n\n\t\tglobal \$conn;"
-            . "\n\t\t\$extra_sql=\"\";"
+            //  
+        $code .= "\";"
             . "\n\t\n\t\tif(isset(\$_POST[\"filter-term\"])&& isset(\$_POST['filter-column']))"
             . "\n\t\t\tif(!empty(\$_POST[\"filter-term\"]) && !empty(\$_POST['filter-column']))"
             . "\n\t\t\t\t\$extra_sql.= sprintf("
@@ -207,7 +208,7 @@ class Generator extends GenHtml {
                 the sql sentence
             /* if(!$FKexist) $code=$code."WHERE ";
               else  $code=$code."AND "; */
-            . "\"AND CAST(a.%s  AS VARCHAR) ILIKE '%s'\", \$_POST[\"filter-column\"],"
+            . "\"AND CAST(%s  AS VARCHAR) ILIKE '%s'\", \$_POST[\"filter-column\"],"
             . " \"%{\$_POST[\"filter-term\"]}%\");"
             . "\n\t\t\telse"
             . "\n\t\t\t\t\$_POST[\"filter-term\"] = '';"
@@ -258,10 +259,12 @@ class Generator extends GenHtml {
         $filter_code = self::generateReportFilterBox($app, $page);
         $delete_code = self::generateDeleteCode($app, $page->getTable(), $pk );
         $buttons_code = "\n\t\techo \"". self::generateOpbuttons($app, $page) . "\";";
+        $form_action = "\n\t\techo \"{$page->getFilename()}\";";
 
         //Creates the args array for the function
         $function_code = self::getFunction("printFilterBox", '', $filter_code);
         $function_code .= self::getFunction("printActionButtons", '', $buttons_code);
+        $function_code .= self::getFunction("printFormAction", '', $form_action);
         $function_code .= self::getFunction("deleteRecords", array("\$ids"), $delete_code);
 
         //Creates the code function
@@ -496,6 +499,7 @@ class Generator extends GenHtml {
             . "&& isset(\$_SESSION['crudgen_passwd']) ){"
             . "\n\t\t\t" . Generator::getConnection($app->library,
                 "\$_SESSION['crudgen_user']", "\$_SESSION['crudgen_passwd']")
+            . "\n\t\t\treturn true;"
             . "\n\t\t} else {";
 
         if ($app->library == 'pgsql') {
@@ -504,15 +508,18 @@ class Generator extends GenHtml {
                 . "&& isset(\$_POST['crudgen_passwd']) )"
                 . "\n\t\t\t\t" . Generator::getConnection($app->library,
                     "\$_POST['crudgen_user']", "\$_POST['crudgen_passwd']")
+                . "\n\t\t\t\treturn true;"
                 . "\n\t\t\tif(\$conn){"
                 . "\n\t\t\t\t\$_SESSION['crudgen_user']=\$_POST['crudgen_user'];"
                 . "\n\t\t\t\t\$_SESSION['crudgen_passwd']=\$_POST['crudgen_passwd'];"
+                . "\n\t\t\t\treturn true;"
                 . "\n\t\t\t}else {"
                 . "\n\t\t\t\t\$_SESSION['error']=\"{$app->lang['strloginerror']}\";"
                 . "\n\t\t\t\tinclude \"login.inc.php\";"
-                . "\n\t\t\t} else{"
-                . "\n\t\t\t\tinclude \"login.inc.php\";"
-                . "\n\t\t\t}";
+                . "\n\t\t\t\treturn false;"
+                . "\n\t\t\t}"
+                . "\n\t\t\tinclude \"login.inc.php\";"
+                . "\n\t\t\treturn false;";
         } else {
             $code .= "if(isset(\$_POST['crudgen_user']) "
                 . "&& isset(\$_POST['crudgen_passwd']) ){"
