@@ -30,7 +30,6 @@
                         <?php printActionButtons() ?>
                         <?php pageOperation() ?>
                         <?php printActionButtons() ?>
-                        <?php printRowsRadios() ?>
                     </div>
                 </form>
             </div>

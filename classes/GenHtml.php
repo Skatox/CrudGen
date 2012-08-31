@@ -34,6 +34,25 @@
 	    }
 
 	    /**
+	     * Generates a submit button
+	     * @param $name input html name
+	     * @param $value input's value
+	     * @param $id input's id
+	     * @return string html of the submit button
+	     */
+	    public static function submit($name, $value, $id = null) {
+    		$input_submit = "<input type=\\\"submit\\\" name=\\\"{$name}\\\" "
+	    		   . "value=\\\"{$value}\\\" ";
+
+		   if(!empty($id))
+		   		$input_submit .= " id=\\\"{$id}\\\" ";
+
+	    	$input_submit .=  "/>";
+
+		   return $input_submit;
+	    }
+
+	    /**
 	     * Generates a hidden input
 	     * @param $name input html name
 	     * @param $value input's value
@@ -51,5 +70,7 @@
 
 		   return $input_hidden;
 	    }
+
+
 	}
 ?>

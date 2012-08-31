@@ -11,6 +11,8 @@ $borderMessage: #FFAA00;
 $bgError: #FF8888;
 $borderError: #FF2222;
 
+$rowHeight: 30px;
+
 /**Dimensions**/
 $menuWidth: 200px;
 $menuPadding: 15px;
@@ -180,9 +182,14 @@ div.login {
 		}
 	}
 
-	.actions-wrapper, .limit-wrapper { display: inline	}
+	.actions-wrapper { display: inline	}
+	.create, .update {
+		text-align: center;
+		display: block;
+		margin: 30px 0;
+	}
 
-	.button {
+	.button, .create input, .update input  {
 		background-color: $lightGreen;
 		border: 1px solid $darkGreen;
 		color: $darkGreen;
@@ -191,11 +198,39 @@ div.login {
 		@include shadow(1px, 1px, 2px, #c2c2c2);
 
 	    font-size: small;
+	    height: 31px;
 	    margin-right: 10px;
 	    padding: 5px 10px;
 	    text-decoration: none;
 	}
 	.button:hover { background-color: $lightGray; }
+
+	/* Insert pages */
+	.insert-wrapper {
+		text-align: center;
+		label {
+			margin-right: 10px;
+			display: inline;
+			font-weight: bold;
+			text-transform: capitalize;
+			text-align: right;
+			width: 200px;
+			line-height: $rowHeight;
+		}
+		input {
+			width: 200px;	
+		}
+		.row { height: $rowHeight; margin-bottom: 5px; }
+
+		.label-wrapper, .value-wrapper {
+			width: 50%;
+			float: left;
+		}
+
+		.label-wrapper { text-align: right; }
+		.value-wrapper { text-align: left; }
+	}
+
 }
 
 td.actions {

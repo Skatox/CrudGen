@@ -11,7 +11,7 @@ class Generator extends GenHtml {
      */
     public static function generatePage(Application $app, Page $page, $path) {
         switch ($page->operation) {
-            case "create": return self::generateCreatePage($app, $page, $path);
+            case "create": return self::generateCreatePage($path, $app, $page);
             case "report": return self::generateReportPage($path, $app, $page);
             case "update": return self::generateUpdatePage($path, $app, $page);
         }
@@ -20,83 +20,110 @@ class Generator extends GenHtml {
 
     /**
      * This function generates a Crate page
+     * @param $path path where file is going to be written
      * @param $app application object where the $app belongs
      * @param $page Page object wich represents the generating page
      * @return bool if this page was created
      */
-    public static function generateCreatePage(Application $app, Page $page, $path) {
+    public static function generateCreatePage($path, Application $app, Page $page) {
         global $lang;
+
         $function_code = '';
-
-        $sql = "INSERT INTO {$app->getSchema()}.{$page->getTable()} (";
-        $sql_values = ") VALUES (";
-
-        //Sort this page fields by its order
         $page->sortFields();
 
         //If updates info at DB then generates input page
-        $clean_vars_code = "";
-        $code = "if(isset(\$_POST[\"operation\"]))\n\tif(\$_POST[\"operation\"]==\"insert\"){"
-            . "\n\t\t\$success= insertRecord();"
-            . "\n\t\tif(\$success==true) "
-            . "\n\t\t\techo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strinsertsuccess']}</strong></p>\";"
-            . "\n\t}\n\t\tif(isset(\$_SESSION['crudgen_user'])){"
-            . "\n\t\t" . GenHtml::hidden('operation', 'insert')
-            . "\n\t\t" . GenHtml::hidden('page_insert_table', $page->getTable())
-            . "\n\t\t<table id=\\\"table\\\">\n\t<thead><tr>"
-            . "<th scope=\\\"row\\\" class=\\\"table-topleft\\\">{$lang['strcolumn']}</th>"
-            . "<th scope=\\\"row\\\" class=\\\"table-topright\\\">{$lang['strvalue']}</th>"
-            . "</tr></thead>"
-            . "\n\t\t<tfoot>\n\t<tr>\n\t\t<td class=\\\"table-bottomleft\\\"></td>"
-            . "<td class=\\\"table-bottomright\\\"></td></tr></tfoot>\n\t\t<tbody>";
+        $clear_vars = "";
+        $code = "\n\t\tif(isset(\$_POST[\"operation\"]))"
+            . "\n\t\t\tif(\$_POST[\"operation\"] == \"insert\")"
+            . "\n\t\t\t\tinsertRecord();"
+            . "\n\t\t\t\t\t\n"
+            . "\n\t\techo \"" . GenHtml::hidden('operation', 'insert')
+            . "\n\t\t\t" . GenHtml::hidden('page_insert_table', $page->getTable())
+            . "\n\t\t\t<div class=\\\"insert-wrapper\\\">";
 
         //Prints the input box for each field
+        $columns = array();
+        $values = array();
         $fields = $page->fields;
+
         for ($i = 0; $i < count($fields); $i++) {
             if ($fields[$i]->isOnPage()) {
-                $clean_vars_code .="\n\tif(!isset(\$_POST[\"{$fields[$i]->getName()}\"])) "
-                    . "\$_POST[\"{$fields[$i]->getName()}\"]='';";
+                $input_id = "column-{$i}";
+                $clear_vars .="\n\t\tif(!isset(\$_POST[\"{$fields[$i]->getName()}\"]))"
+                    . "\n\t\t\t\$_POST[\"{$fields[$i]->getName()}\"] = '';\n";
 
-                $code .= "\n\t\t\t<tr><td>{$fields[$i]->getDisplayName()}</td>";
+                $code .= "\n\t\t\t\t<div class=\\\"row\\\">"
+                    . "\n\t\t\t\t\t<div class=\\\"label-wrapper\\\">"
+                    . "\n\t\t\t\t\t\t<label for=\\\"{$input_id}\\\">{$fields[$i]->getDisplayName()}</label>"
+                    . "\n\t\t\t\t\t</div>";
                 if ($fields[$i]->isFK()) {
-                    $code .= "<td><select name=\\\"{$fields[$i]->getName()}\\\" class=\\\"almost-full-wide\\\">\";"
+                    $code .= "\n\t\t\t\t\t\t<select name=\\\"{$fields[$i]->getName()}\\\" class=\\\"almost-full-wide\\\">\";"
                         . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}',"
                         . "'" . self::getPK($app->getDBName(), $fields[$i]->getRemoteTable()) . "','{$fields[$i]->getRemoteField()}'); "
-                        . "echo \"</select></td></tr>";
+                        . "echo \"\n\t\t\t\t\t\t</select>";
                 } else {
                     $class_code = self::generateValidationClasses($page->getTable(), $fields[$i]->getName());
-                    $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\"  {$class_code} value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/></td></tr>";
+                    $code .= "\n\t\t\t\t\t\t<div class=\\\"value-wrapper\\\">"
+                    . "\n\t\t\t\t\t\t<input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" "
+                    . " id=\\\"{$input_id}\\\" {$class_code} value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/>"
+                    . "\n\t\t\t\t\t</div>";
                 }
-                //Constructs SQL DATA
-                $sql = $sql . $fields[$i]->getName() . ",";
-                $sql_values = $sql_values . "'{\$_POST[\"{$fields[$i]->getName()}\"]}',";
+
+                $code .= "\n\t\t\t\t</div>";
+                $columns[] = $fields[$i]->getName();
+                $values[] = "'{\$_POST[\"{$fields[$i]->getName()}\"]}'";
             }
         }
-        //checks if the sql setence's parameters ends with comma, then deletes it
-        if (substr($sql, -1) == ",")
-            $sql[strlen($sql) - 1] = " ";
-        if (substr($sql_values, -1) == ",")
-            $sql_values[strlen($sql_values) - 1] = ")";
+        $code .=  "\n\t\t</div>\";";
 
-        $printfk_code = "global \$conn;\n\t\n\tif (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
-            . "\n\t\$rs=pg_query(\$conn,\"SELECT \".\$pk.\",\".\$field.\" FROM \".\$schema.\".\".\$table);"
-            . "\n\tif (!\$rs) {\n\t\techo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrorquery']}</strong></div>\"; exit;\n\t}"
-            . "\n\twhile (\$row = pg_fetch_array(\$rs)){\n\t\t"
-            . "echo \"<option value=\\\"{\$row[0]}\\\">{\$row[1]}</option>\";\n\t}\n\tpg_free_result(\$rs);";
+        //Generates code for functions
+        $buttons_code = "\t\techo \"". self::genCreateUpdateBtns($app, $page) . "\";";
+        $fk_code = "\t\tglobal \$conn;\n"
+            . "\n\t\tif (!\$conn) { "
+            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']}:\" . pg_last_error();"
+            . "\n\t\t\texit;"
+            . "\n\t\t}"
+            . "\n\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
+            . "\n\n\t\tif (!\$rs) {"
+            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
+            . "\n\t\t\texit;"
+            . "\n\t\t}"
+            . "\n\t\twhile (\$row = pg_fetch_array(\$rs))"
+            . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\">{\$row[1]}</option>\";"
+            . "\n\n\t\tpg_free_result(\$rs);";
 
-        $insert_code = "global \$conn;\n\tif (!\$conn) { echo \"<p><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
-            . "\n\t\$rs=pg_query(\$conn,\"{$sql}{$sql_values}\");\n\tif (!\$rs) {\n\t\t"
-            . "echo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strinsertfail']}</strong><br />\".pg_last_error(\$conn).\"</p>\";"
-            . "\n\t\treturn false;\n\t}\n\telse{\n\t\tpg_free_result(\$rs);\n\t\treturn true;\n\t}";
+        $sql = "INSERT INTO {$app->getSchema()}.{$page->getTable()}"
+            . " (" . implode(",", $columns) . ") "
+            ."VALUES (" . implode(",", $values) . ")";
 
-        $code .= "\n\t\t</tbody>\n\t</table>";
+        $insert_code = "\t\tglobal \$conn;"
+            . "\n\t\tif (!\$conn) {"
+            . "\n\t\t\t\$_SESSION['error'] =  \"{$app->lang['strerrordbconn']}: \" . pg_last_error();"
+            . "\n\t\t\texit;"
+            . "\n\t\t}\n"
+            . $clear_vars
+            . "\n\t\t\$rs = pg_query(\$conn,\"{$sql}\");\n"
+            . "\n\t\tif (!\$rs) {"
+            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strinsertfail']}:\" . pg_last_error( \$conn );"
+            . "\n\t\t\treturn false;"
+            . "\n\t\t} else {"
+            . "\n\t\t\t\$_SESSION['msg'] = \"{$app->lang['strinsertsuccess']}\";";
 
-        //Creates the code's functions
-        $function_code .= self::getFunction("printActionButtons", "", self::generateOpbuttons($app, $page));
+        foreach ($columns as $column)
+             $insert_code .= "\n\t\t\t\$_POST['{$column}'] = '';";
+
+        $insert_code .= "\n\t\t\tpg_free_result(\$rs);"
+            . "\n\t\t\treturn true;"
+            . "\n\t\t}";
+
+        $form_action = "\n\t\techo \"{$page->getFilename()}\";";
+
         $args = array("\$schema,\$table", "\$pk", "\$field");
-        $function_code .= self::getFunction("printFKOptions", $args, $printfk_code);
-        $function_code .= self::getFunction("insertRecord", "", $clean_vars_code . $insert_code);
-        $function_code .= self::generateOpFunc(null, $clean_vars_code . $code);
+        $function_code .= self::getFunction("printFKOptions", $args, $fk_code);
+        $function_code .= self::getFunction("printFormAction", '', $form_action);
+        $function_code .= self::getFunction("printActionButtons", "", $buttons_code);
+        $function_code .= self::getFunction("insertRecord", "", $insert_code);
+        $function_code .= self::generateOpFunc(null, $clear_vars . $code);
 
         return self::generatePageFile($page, $path, $function_code);
     }
@@ -104,6 +131,7 @@ class Generator extends GenHtml {
     /**
      * Function to generate a report webpage with delete functions
      * from a Page object
+     * @param $path path where file is going to be written
      * @param $page desired page object to generate its file
      * @param $app current aplication's object
      * @return bool if this page was created
@@ -254,11 +282,12 @@ class Generator extends GenHtml {
             . "\n\t\t\techo \"</tr>\";\n\t\t}"
             . "\n\n\t\tpg_free_result(\$rs);//Closes db connection"
             . "\n\t\techo \"</tbody></table>\";"
+            . "\n\t\tprintRowsRadios();"
             . "\n\t\tprintPagination(\$rows,\$limit);";
 
         $filter_code = self::generateReportFilterBox($app, $page);
         $delete_code = self::generateDeleteCode($app, $page->getTable(), $pk );
-        $buttons_code = "\n\t\techo \"". self::generateOpbuttons($app, $page) . "\";";
+        $buttons_code = "\n\t\techo \"". self::genReportBtns($app, $page) . "\";";
         $form_action = "\n\t\techo \"{$page->getFilename()}\";";
 
         //Creates the args array for the function
@@ -357,8 +386,8 @@ class Generator extends GenHtml {
         }
         $code .= "\n\t\t\t\t\t</tbody>\n\t\t\t\t</table>";
         //Prints operation buttons
-        $buttons_code = self::generateOpbuttons($app, $page);
-        $only_right_buttons = self::generateOpbuttons($app, $page, true);
+        $buttons_code = self::genReportBtns($app, $page);
+        $only_right_buttons = self::genReportBtns($app, $page, true);
         //Code for print foreing key values in a select input
         $printfk_code = "global \$conn;\n\t"
             . "if (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
@@ -986,13 +1015,14 @@ class Generator extends GenHtml {
     }
 
     /**
-     * This function generate buttons for a page, this buttons let navigate trought
-     * all pages that interact with current page's db table
+     * This function generate buttons for a report page, this buttons 
+     * lets you navigate trought all pages that interact with current 
+     * page's db table
      * @param Application $app current aplication object
      * @param Page $page page object where the buttons will be inserted
      * @return string html code for buttons
      */
-    public static function generateOpbuttons(Application $app, Page $page) {
+    public static function genReportBtns(Application $app, Page $page) {
         global $lang;
 
         $cur_op = $page->operation;
@@ -1003,21 +1033,54 @@ class Generator extends GenHtml {
         $update = array_search('u', $page_ops['operations']);
 
         $code = "<div class=\\\"actions-wrapper\\\">";
-        if($create !== false && $cur_op != 'create')
+        if($create !== false)
             $code   .= "\n\t\t\t" . GenHtml::link($lang['strinsert'],
                     'insertButton button', $page_ops['filenames'][$create]);
 
-        if($report !== false && $cur_op != 'report')
-            $code   .= "\n\t\t\t" . GenHtml::link($lang['strreports'],
-                    'reportButton button', $page_ops['filenames'][$report]);
-
-        if($update !== false && $cur_op != 'update')
+        if($update !== false)
             $code   .= "\n\t\t\t" . GenHtml::link($lang['stredit'],
                     'updateButton button', $page_ops['filenames'][$update]);
 
         if($report !== false)
             $code   .= "\n\t\t\t" . GenHtml::link($lang['strdelete'],
                     'deleteButton button', $page_ops['filenames'][$report]);
+
+        $code .= "\n\t\t</div>";
+
+        return $code;
+    }
+
+    /**
+     * This function generates action buttons for Create and Update pages
+     * @param Application $app current aplication object
+     * @param Page $page page object where the buttons will be inserted
+     * @return string html code for buttons
+     */
+    public static function genCreateUpdateBtns(Application $app, Page $page) {
+        global $lang;
+
+        $cur_op = $page->operation;
+        $page_ops = self::getPageOperations($app, $page->getTable());
+
+        $create = array_search('c', $page_ops['operations']);
+        $report = array_search('r', $page_ops['operations']);
+        $update = array_search('u', $page_ops['operations']);
+
+        $code = "<div class=\\\"actions-wrapper {$cur_op}\\\">";
+
+        if($create !== false)
+            $code   .= "\n\t\t\t" . GenHtml::submit('insertButton', $lang['strsave']);
+
+        if($update !== false)
+            $code   .= "\n\t\t\t" . GenHtml::submit('updateButton', $lang['stredit']);
+        
+        if($report !== false && $cur_op == 'update')
+            $code   .= "\n\t\t\t" . GenHtml::link($lang['strdelete'],
+                    'deleteButton button', $page_ops['filenames'][$report]);
+
+        if($report !== false)
+            $code   .= "\n\t\t\t" . GenHtml::link($lang['strcancel'],
+                    'reportButton button', $page_ops['filenames'][$report]);
 
         $code .= "\n\t\t</div>";
 
