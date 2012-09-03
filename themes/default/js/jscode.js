@@ -40,4 +40,6 @@ $().ready(function(){
 	$('#selectedAll').on('click', function(){
 		$('#results input').prop('checked', $(this).prop('checked'))
 	})
+
+	$('#operation-form').validate();
 })

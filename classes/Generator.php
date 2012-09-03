@@ -44,6 +44,7 @@ class Generator extends GenHtml {
         //Prints the input box for each field
         $columns = array();
         $values = array();
+        $sprintf = array();
         $fields = $page->fields;
 
         for ($i = 0; $i < count($fields); $i++) {
@@ -55,23 +56,31 @@ class Generator extends GenHtml {
                 $code .= "\n\t\t\t\t<div class=\\\"row\\\">"
                     . "\n\t\t\t\t\t<div class=\\\"label-wrapper\\\">"
                     . "\n\t\t\t\t\t\t<label for=\\\"{$input_id}\\\">{$fields[$i]->getDisplayName()}</label>"
-                    . "\n\t\t\t\t\t</div>";
+                    . "\n\t\t\t\t\t</div>"
+                    . "\n\t\t\t\t\t\t<div class=\\\"value-wrapper\\\">";
+
                 if ($fields[$i]->isFK()) {
-                    $code .= "\n\t\t\t\t\t\t<select name=\\\"{$fields[$i]->getName()}\\\" class=\\\"almost-full-wide\\\">\";"
-                        . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}',"
-                        . "'" . self::getPK($app->getDBName(), $fields[$i]->getRemoteTable()) . "','{$fields[$i]->getRemoteField()}'); "
+                    $code .= "\n\t\t\t\t\t\t<select name=\\\"{$fields[$i]->getName()}\\\" "
+                        . "class=\\\"almost-full-wide "
+                        . self::generateValidationClasses($page->getTable(), $fields[$i]->getName())
+                        . "\\\">"
+                        . "\n\t\t\t\t\t\t<option value=\\\"\\\">{$app->lang['strselectval']}</option>\";"
+                        . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}','"
+                        . self::getPK($app->getDBName(), $fields[$i]->getRemoteTable()) 
+                        . "','{$fields[$i]->getRemoteField()}'); "
                         . "echo \"\n\t\t\t\t\t\t</select>";
                 } else {
                     $class_code = self::generateValidationClasses($page->getTable(), $fields[$i]->getName());
-                    $code .= "\n\t\t\t\t\t\t<div class=\\\"value-wrapper\\\">"
-                    . "\n\t\t\t\t\t\t<input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" "
-                    . " id=\\\"{$input_id}\\\" {$class_code} value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/>"
-                    . "\n\t\t\t\t\t</div>";
+                    $code .= "\n\t\t\t\t\t\t<input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" "
+                    . " id=\\\"{$input_id}\\\" class=\\\"{$class_code}\\\" value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/>";
                 }
 
-                $code .= "\n\t\t\t\t</div>";
+                $code .= "\n\t\t\t\t\t</div>"
+                    . "\n\t\t\t\t</div>";
+
                 $columns[] = $fields[$i]->getName();
-                $values[] = "'{\$_POST[\"{$fields[$i]->getName()}\"]}'";
+                $values[] = "clearVars(\$_POST[\"{$fields[$i]->getName()}\"])";
+                $sprintf[] = "%s";
             }
         }
         $code .=  "\n\t\t</div>\";";
@@ -83,7 +92,11 @@ class Generator extends GenHtml {
             . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']}:\" . pg_last_error();"
             . "\n\t\t\texit;"
             . "\n\t\t}"
-            . "\n\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
+            . "\n\n\t\ttry {"
+            . "\n\t\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
+            . "\n\t\t} catch (Exception \$e) {"
+            . "\n\t\t\t\$rs = NULL;"
+            . "\n\t\t}"
             . "\n\n\t\tif (!\$rs) {"
             . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
             . "\n\t\t\texit;"
@@ -92,9 +105,10 @@ class Generator extends GenHtml {
             . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\">{\$row[1]}</option>\";"
             . "\n\n\t\tpg_free_result(\$rs);";
 
-        $sql = "INSERT INTO {$app->getSchema()}.{$page->getTable()}"
+        $sql = "\n\t\t\tsprintf(\"INSERT INTO {$app->getSchema()}.{$page->getTable()}"
             . " (" . implode(",", $columns) . ") "
-            ."VALUES (" . implode(",", $values) . ")";
+            . "\n\t\t\t\t\tVALUES (" . implode(",", $sprintf) . ")\",\n\t\t\t\t\t"
+            .  implode(", ", $values) . ")";
 
         $insert_code = "\t\tglobal \$conn;"
             . "\n\t\tif (!\$conn) {"
@@ -102,7 +116,11 @@ class Generator extends GenHtml {
             . "\n\t\t\texit;"
             . "\n\t\t}\n"
             . $clear_vars
-            . "\n\t\t\$rs = pg_query(\$conn,\"{$sql}\");\n"
+            . "\n\n\t\ttry {"
+            . "\n\t\t\t\$rs = pg_query(\$conn,{$sql});\n"
+            . "\n\t\t} catch (Exception \$e) {"
+            . "\n\t\t\t\$rs = NULL;"
+            . "\n\t\t}"
             . "\n\t\tif (!\$rs) {"
             . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strinsertfail']}:\" . pg_last_error( \$conn );"
             . "\n\t\t\treturn false;"
@@ -116,13 +134,16 @@ class Generator extends GenHtml {
             . "\n\t\t\treturn true;"
             . "\n\t\t}";
 
+        $clear_code = "\t\treturn (\$val == '' || \$val == NULL) ? \"NULL\" : \"'{\$val}'\";";
+
         $form_action = "\n\t\techo \"{$page->getFilename()}\";";
 
         $args = array("\$schema,\$table", "\$pk", "\$field");
+        $function_code .= self::getFunction("insertRecord", "", $insert_code);
         $function_code .= self::getFunction("printFKOptions", $args, $fk_code);
+        $function_code .= self::getFunction("clearVars", "\$val", $clear_code);
         $function_code .= self::getFunction("printFormAction", '', $form_action);
         $function_code .= self::getFunction("printActionButtons", "", $buttons_code);
-        $function_code .= self::getFunction("insertRecord", "", $insert_code);
         $function_code .= self::generateOpFunc(null, $clear_vars . $code);
 
         return self::generatePageFile($page, $path, $function_code);
@@ -893,21 +914,23 @@ class Generator extends GenHtml {
         $attrs = $data->getTableAttributes($table_name);
 
         while (!$attrs->EOF) {
+            if($attrs->fields['attname'] == $name) {
+                if ($attrs->fields['attnotnull'] == 't')
+                    $class_code .= 'required ';
 
-            if (($attrs->fields['attnotnull']=='t') &&
-                ($attrs->fields['attname'] == $name))
-                $class_code.= "required ";
-
-            if (($attrs->fields['type'] == "date") &&
-                ($attrs->fields['attname'] == $name))
-                $class_code .= "date ";
+                switch($attrs->fields['type']){
+                    case 'date':
+                        $class_code .= "date ";
+                    case 'numeric':
+                        $class_code .= "number ";   
+                    case 'smallint':
+                    case 'integer':
+                        $class_code .= "digits ";   
+                }
+            }
             $attrs->moveNext();
         }
-
-        if (!empty($class_code))
-            $class_code = ' class=\"' . trim($class_code) . '\" ';
-
-        return $class_code;
+        return trim($class_code);;
     }
 
     /**

@@ -119,6 +119,7 @@
     $lang['strsearch'] = 'Search';
     $lang['stremptyrows'] = 'No data matching your search criteria.';
     $lang['strgotopage'] = 'Go to page: ';
+    $lang['strselectval'] = '--Select--';
     
     //Errors
     $lang['strerrnotbl'] = 'Selected schema is empty, you must have some tables to create an application.';
