@@ -87,23 +87,6 @@ class Generator extends GenHtml {
 
         //Generates code for functions
         $buttons_code = "\t\techo \"". self::genCreateUpdateBtns($app, $page) . "\";";
-        $fk_code = "\t\tglobal \$conn;\n"
-            . "\n\t\tif (!\$conn) { "
-            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']}:\" . pg_last_error();"
-            . "\n\t\t\texit;"
-            . "\n\t\t}"
-            . "\n\n\t\ttry {"
-            . "\n\t\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
-            . "\n\t\t} catch (Exception \$e) {"
-            . "\n\t\t\t\$rs = NULL;"
-            . "\n\t\t}"
-            . "\n\n\t\tif (!\$rs) {"
-            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
-            . "\n\t\t\texit;"
-            . "\n\t\t}"
-            . "\n\t\twhile (\$row = pg_fetch_array(\$rs))"
-            . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\">{\$row[1]}</option>\";"
-            . "\n\n\t\tpg_free_result(\$rs);";
 
         $sql = "\n\t\t\tsprintf(\"INSERT INTO {$app->getSchema()}.{$page->getTable()}"
             . " (" . implode(",", $columns) . ") "
@@ -140,7 +123,7 @@ class Generator extends GenHtml {
 
         $args = array("\$schema,\$table", "\$pk", "\$field");
         $function_code .= self::getFunction("insertRecord", "", $insert_code);
-        $function_code .= self::getFunction("printFKOptions", $args, $fk_code);
+        $function_code .= self::getFunction("printFKOptions", $args, self::printFkOptions($app));
         $function_code .= self::getFunction("clearVars", "\$val", $clear_code);
         $function_code .= self::getFunction("printFormAction", '', $form_action);
         $function_code .= self::getFunction("printActionButtons", "", $buttons_code);
@@ -246,17 +229,10 @@ class Generator extends GenHtml {
 
         $code .= count($wheres) ? implode("AND ", $wheres) : "1=1";
 
-            //Adds Db's connection to the function's code
-            //  
         $code .= "\";"
             . "\n\t\n\t\tif(isset(\$_POST[\"filter-term\"])&& isset(\$_POST['filter-column']))"
             . "\n\t\t\tif(!empty(\$_POST[\"filter-term\"]) && !empty(\$_POST['filter-column']))"
             . "\n\t\t\t\t\$extra_sql.= sprintf("
-
-            /* If this page work with a fk doesn't need to add a WHERE to
-                the sql sentence
-            /* if(!$FKexist) $code=$code."WHERE ";
-              else  $code=$code."AND "; */
             . "\"AND CAST(%s  AS VARCHAR) ILIKE '%s'\", \$_POST[\"filter-column\"],"
             . " \"%{\$_POST[\"filter-term\"]}%\");"
             . "\n\t\t\telse"
@@ -282,8 +258,8 @@ class Generator extends GenHtml {
             . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
             . "\n\t\t\texit;"
             . "\n\t\t}"
-            . "\n\t\t\$rows= pg_num_rows(\$rs);"
-            . "\n\t\t\$rs=pg_query(\$conn,\"{$sql}\".\$extra_sql.\$paginate_sql);"
+            . "\n\t\t\$rows = pg_num_rows(\$rs);"
+            . "\n\t\t\$rs = pg_query(\$conn,\"{$sql}\".\$extra_sql.\$paginate_sql);"
             . "\n\n\t\tprintFilterBox();//Filter results";
         $code .= $table_code;
 
@@ -324,142 +300,171 @@ class Generator extends GenHtml {
 
     /**
      * This function generates an Update Page
+     * @param $path path where file is going to be written
      * @param $app application object where the $app belongs
      * @param $page Page object wich represents the generating page
      * @return bool if this page was created
      */
     public static function generateUpdatePage($path, Application $app, Page $page) {
         global $lang;
-        $function_code = '';
 
-        $sql = "UPDATE {$app->getSchema()}.{$page->getTable()} SET ";
-        $sql_array = "\$set_sql=array(";
-        $sql_where = " WHERE " . self::getPK($app->getDBName(), $page->getTable()) . "='{\$id}'";
-
-        //Sort this page fields by its order
         $page->sortFields();
 
         //If updates info at DB then generates input page
-        $code = "\n\tif(isset(\$_POST[\"uindex\"]))\$uindex=\$_POST[\"uindex\"];"
-            . "\n\telse \$uindex=0;\n\tif(isset(\$_POST[\"selected\"])) {\n\t\t"
-            . "\$_SESSION[\"selected\"]=\$_POST[\"selected\"];\n\t}"
-            . "\n\tif(isset(\$_POST[\"operation\"]))\n\tif(\$_POST[\"operation\"]==\"update\"){\n\t\t\$success= updateRow(\$_SESSION[\"selected\"][\$uindex]);"
-            . "\n\tif(\$success==true) {\n\t\techo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strupdatesuccess']}</strong></p>\";"
-            . "\n\t\t\$uindex=\$uindex+1;\n\t\techo \"<input type=\\\"hidden\\\" name=\\\"uindex\\\" value=\\\"\".\$uindex.\"\\\" />\";"
-            . "\n\t}\n\tif(\$uindex==count(\$_SESSION[\"selected\"])){\n\t\tunset(\$_POST[\"operation\"]);"
-            . "\n\t\tunset(\$_SESSION[\"selected\"]);\n\t}\n\telse{\n\t\t\$_POST[\"operation\"]=\"edit\";\n\t}\n}"
-            . "\n\tif(isset(\$_SESSION[\"selected\"])&&(\$_POST[\"operation\"]==\"edit\")){\n\t\t"
-            . "\n\t\tif(isset(\$_SESSION['crudgen_user'])){"
-            . "\n\t\techo \"<div class=\\\"right;\\\"> <a href=\\\"#logout\\\" id=\\\"logOutButton\\\">{$lang['strlogout']}</a></div><p></p>\";\n\t\t}"
-            . "\n\t\tglobal \$conn;\n\t\tif (!\$conn) { echo \"<p class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
-            . "\n\t\t\$cant=count(\$_SESSION[\"selected\"]);"
-            . "\n\t\t\$query=\"SELECT ";
+        $code = "\t\$uindex = isset(\$_POST[\"uindex\"]) ? \$_POST[\"uindex\"] : 0;\n"
+            . "\n\t\tif(isset(\$_POST[\"selected\"]))"
+            . "\n\t\t\t\$_SESSION[\"selected\"] = \$_POST[\"selected\"];\n"
+            . "\n\t\tif(isset(\$_POST[\"operation\"]))"
+            . "\n\t\t\tif(\$_POST[\"operation\"]==\"update\"){"
+            . "\n\t\t\t\t\$success= updateRow(\$_SESSION[\"selected\"][\$uindex]);\n"
+            . "\n\t\t\t\tif(\$success) {"
+            . "\n\t\t\t\t\t\$_SESSION['msg'] = \"{$app->lang['strupdatesuccess']}\";"
+            . "\n\t\t\t\t\t\$uindex++;"
+            . "\n\t\t\t\t\techo \"". GenHtml::hidden('uindex', "{\$uindex}") . "\";"
+            . "\n\t\t\t\t}"
+            . "\n\t\t\t\tif(\$uindex == count(\$_SESSION[\"selected\"])){"
+            . "\n\t\t\t\t\tunset(\$_POST[\"operation\"]);"
+            . "\n\t\t\t\t\tunset(\$_SESSION[\"selected\"]);"
+            . "\n\t\t\t\t} else {"
+            . "\n\t\t\t\t\t\$_POST[\"operation\"] = \"edit\";"
+            . "\n\t\t\t\t}"
+            . "\n\t\t\t}\n"
+            . "\n\t\tif(isset(\$_SESSION[\"selected\"]) && (\$_POST[\"operation\"]==\"edit\")){"
+            . "\n\t\t\tglobal \$conn;\n"
+            . "\n\t\t\tif (!\$conn) {"
+            . "\n\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']} :\" . pg_last_error();"
+            . "\n\t\t\t\texit;"
+            . "\n\t\t\t}"
+            . "\n\t\t\t\$cant = count(\$_SESSION[\"selected\"]);"
+            . "\n\t\t\t\$id = \$cant > 1 ? \$_SESSION[\"selected\"][\$uindex] : \$_SESSION[\"selected\"][0];"
+            . "\n\t\t\t\$query = \"SELECT ";
 
-        //search for selected columns to update
         $fields = $page->fields;
-        //Constructs SQL select sentence to retrieve data to be modified
+        $columns = array(); 
+        $visible_columns = array(); 
+
         for ($i = 0; $i < count($fields); $i++) {
             if ($fields[$i]->isOnPage()) {
-                $code .= "{$fields[$i]->getName()},";
-                //$sql=$sql." {$fields[$i]->getName()}='{\$_POST[\"{$fields[$i]->getName()}\"]}',";
-                $sql_array = $sql_array . "\"{$fields[$i]->getName()}\",";
+                $columns[] = $fields[$i]->getName();
+                $visible_columns[] = "'{$fields[$i]->getName()}'";
             }
         }
-        //delete last comma
-        if (substr($code, -1) == ","
-        )
-            $code[strlen($code) - 1] = " ";
-//      if(substr($sql, -1)==",")$sql[strlen($sql)-1]=" ";
-        if (substr($sql_array, -1) == ","
-        )
-            $sql_array[strlen($sql_array) - 1] = " ";
 
-        $sql_array = $sql_array . ");";
-        $code .= " FROM {$app->getSchema()}.{$page->getTable()} WHERE "
-            . self::getPK($app->getDBName(), $page->getTable()) . "=\";"
-            . "\n\t\tif(\$cant>1) \$query=\$query.\"{\$_SESSION[\"selected\"][\$uindex]}\";"
-            . "\n\t\telse \$query=\$query.\"{\$_SESSION[\"selected\"][0]}\";"
-            . "\n\t\t\$rs=pg_query(\$conn,\$query);"
-            . "\n\t\tif (!\$rs) {\n\t\t\techo \"<strong>{$app->lang['strerrorquery']}</strong>\"; exit;\n\t\t}"
-            . "\n\t\t\$row = pg_fetch_array(\$rs);\n\t\tif(!\$row){echo \"{$app->lang['strrecordnoexist']}\";exit;}\n\t\t"
-            . "\n\t\techo \"<input type=\\\"hidden\\\" name=\\\"operation\\\" value=\\\"update\\\" />\n\t\t"
-            . "<input type=\\\"hidden\\\" name=\\\"uindex\\\" value=\\\"\".\$uindex.\"\\\" />\n\t\t"
-            . "<table id=\\\"results\\\">\n\t\t<thead><tr><th scope=\\\"row\\\" class=\\\"table-topleft\\\">\n\t\t"
-            . "{$lang['strcolumn']}</th><th scope=\\\"row\\\" class=\\\"table-topright\\\">{$lang['strvalue']}</th></tr></thead>"
-            . "<tfoot>\n\t\t<tr>\n\t\t<td class=\\\"table-bottomleft\\\"></td><td class=\\\"table-bottomright\\\"></td></tr></tfoot>\n\t\t<tbody>";
+        $code .= implode(', ', $columns ) 
+            . " FROM {$app->getSchema()}.{$page->getTable()} WHERE "
+            . self::getPK($app->getDBName(), $page->getTable()) . " = {\$id}\";\n"
+            . "\n\t\t\techo \$query;\n"
+            /*. "\n\t\t\t\$rs = pg_query(\$conn, \$query);\n"
+            . "\n\t\t\tif (!\$rs)"
+            . "\n\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
+            . "\n\t\t\t\texit;"
+            . "\n\t\t\t}\n"
+            . "\n\t\t\t\$row = pg_fetch_array(\$rs);\n"
+            . "\n\t\t\tif(!\$row ) {"
+            . "\n\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strrecordnoexist']}\";"
+            . "\n\t\t\t\texit;"
+            . "\n\t\t\t}"*/
+            . "\n\t\t\techo \"". GenHtml::hidden('operation', 'update') . "\";"
+            . "\n\t\t\techo \"". GenHtml::hidden('uindex', "\". \$uindex . \"")
+            . "\n\t\t\t<div class=\\\"insert-wrapper\\\">";
 
-        $show_index = 0;
         //Prints the input box for each field
+        $clear_vars = "";
+        $values = array();
+        $columns = array();
+        $fields = $page->fields;
+
         for ($i = 0; $i < count($fields); $i++) {
             if ($fields[$i]->isOnPage()) {
-                $code .= "\n\t\t\t<tr><td>{$fields[$i]->getDisplayName()}</td>";
+                $input_id = "column-{$i}";
+                $clear_vars .="\n\t\tif(!isset(\$_POST[\"{$fields[$i]->getName()}\"]))"
+                    . "\n\t\t\t\$_POST[\"{$fields[$i]->getName()}\"] = '';\n";
+
+                $code .= "\n\t\t\t\t<div class=\\\"row\\\">"
+                    . "\n\t\t\t\t\t<div class=\\\"label-wrapper\\\">"
+                    . "\n\t\t\t\t\t\t<label for=\\\"{$input_id}\\\">{$fields[$i]->getDisplayName()}</label>"
+                    . "\n\t\t\t\t\t</div>"
+                    . "\n\t\t\t\t\t\t<div class=\\\"value-wrapper\\\">";
+
                 if ($fields[$i]->isFK()) {
-                    $code .= "<td><select name=\\\"{$fields[$i]->getName()}\\\" class=\\\"full-wide\\\">\";"
-                        . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}',"
-                        . "'{$this->getPK($app->getDBName(), $fields[$i]->getRemoteTable())}','{$fields[$i]->getRemoteField()}',\$row[{$show_index}]); echo \"</select></td></tr>";
+                    $code .= "\n\t\t\t\t\t\t<select name=\\\"{$fields[$i]->getName()}\\\" "
+                        . "class=\\\""
+                        . self::generateValidationClasses($page->getTable(), $fields[$i]->getName())
+                        . "\\\">"
+                        . "\n\t\t\t\t\t\t<option value=\\\"\\\">{$app->lang['strselectval']}</option>\";"
+                        . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}','"
+                        . self::getPK($app->getDBName(), $fields[$i]->getRemoteTable()) 
+                        . "','{$fields[$i]->getRemoteField()}'); "
+                        . "echo \"\n\t\t\t\t\t\t</select>";
                 } else {
-                    //checks if attribute is null or if it is date
                     $class_code = self::generateValidationClasses($page->getTable(), $fields[$i]->getName());
-                    $code .= "<td><input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" {$class_code} value=\\\"\".htmlspecialchars(\$row[{$show_index}]).\"\\\"/></td></tr>";
+                    $code .= "\n\t\t\t\t\t\t<input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" "
+                    . " id=\\\"{$input_id}\\\" class=\\\"{$class_code}\\\" value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/>";
                 }
-                $show_index = $show_index + 1;
+
+                $code .= "\n\t\t\t\t\t</div>"
+                    . "\n\t\t\t\t</div>";
+
+                $columns[] = $fields[$i]->getName();
+                $values[] = "clearVars(\$_POST[\"{$fields[$i]->getName()}\"])";
             }
         }
-        $code .= "\n\t\t\t\t\t</tbody>\n\t\t\t\t</table>";
-        //Prints operation buttons
-        $buttons_code = self::genReportBtns($app, $page);
+        $code .=  "\n\t\t</div>\";"
+            . "\n\t}";
+
+
+        /*$buttons_code = self::genReportBtns($app, $page);
         $only_right_buttons = self::genReportBtns($app, $page, true);
-        //Code for print foreing key values in a select input
-        $printfk_code = "global \$conn;\n\t"
-            . "if (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
-            . "\n\t\$rs=pg_query(\$conn,\"SELECT \".\$pk.\",\".\$field.\" FROM \".\$schema.\".\".\$table);"
-            . "\n\tif (!\$rs) {\n\t\techo \"<strong>{$app->lang['strerrorquery']}</strong>\"; exit;\n\t}"
-            . "\n\twhile (\$row = pg_fetch_array(\$rs)){\n\t\t"
-            . "echo \"<option value=\\\"{\$row[0]}\\\"\";"
-            . "\n\t\tif(\$row[0]==\$selected_pk) echo\" selected=\\\"selected\\\" \";"
-            . "\n\t\techo \">{\$row[1]}</option>\";\n\t}\n\tpg_free_result(\$rs);";
-
-        //Code for updating information
-        $update_code = "global \$conn;\n\t{$sql_array}\n\t\$sql_args=\"\";"
-            . "\n\tforeach(\$set_sql as \$update_column){\n\t\t"
-            . "if(\$_POST[\$update_column]==\"\")\n\t\t\t\$sql_args=\$sql_args.\"{\$update_column}=NULL,\";"
-            . "\n\t\telse\n\t\t\t\$sql_args=\$sql_args.\"{\$update_column}='{\$_POST[\$update_column]}',\";\n\t}"
-            . "\n\tif(substr(\$sql_args, -1)==\",\")\$sql_args[strlen(\$sql_args)-1]=\" \";"
-            . "\n\tif (!\$conn) { echo \"<p  class=\\\"warnmsg\\\"><strong>{$app->lang['strerrordbconn']}:\".pg_last_error().\"</strong></p>\"; exit; }"
-            . "\n\t\$rs=pg_query(\$conn,\"{$sql} {\$sql_args} {$sql_where}\");"
-            . "\n\tif (!\$rs) {\n\t\techo \"<p></p><p class=\\\"warnmsg\\\"><strong>{$app->lang['strupdatefail']}</strong><br />\".pg_last_error(\$conn).\"</p>\";"
-            . "\n\t\tpg_free_result(\$rs);\n\t\treturn false;\n\t}"
-            . "\n\telse{\n\t\tpg_free_result(\$rs);\n\t\treturn true;\n\t}";
-
-        /*         * *Box for request for a pk if none was sent* */
-        //Search for the report page's filename to create a link to go back
-        $tbl_op = self::getPageOperations($app, $page->getTable());
-        $report_filename = '';
-
-        if (count($tbl_op) > 0) {
-            $i = array_search('b', $tbl_op['operations']);
-
-            if ($i !== false)
-                $report_filename = $tbl_op['filenames'][$i];
-        }
-
-        if (!empty($report_filename))
-            $gobacklink = str_replace('{URL}', "\\\"" . $report_filename . "\\\"", $lang['gobackreport']);
-        else
-            $gobacklink = '';
 
         $pk_request = "<div class=\\\"full-wide\\\"><div class=\\\"center-buttons\\\">
                         <a class=\\\"button sendForm\\\" href=\\\"#u\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strupdate']}</span></a>
                     </div></div>{$only_right_buttons}";
-        $code .= "{$buttons_code}\";\n\t\t}\n\tif(!isset(\$_POST[\"operation\"])|| (count(\$_POST[\"selected\"])<1)){"
-            . "\n\t\techo \"{$pk_request}\";\n\t}";
+        $code .= "\n\t\t{$buttons_code}\";\n\t\t}\n\tif(!isset(\$_POST[\"operation\"])|| (count(\$_POST[\"selected\"])<1)){"
+            . "\n\t\t\techo \"{$pk_request}\";\n\t}";*/
+        
+        //Generates code for functions
+        $sql = "UPDATE {$app->getSchema()}.{$page->getTable()} SET \" . "
+            . "implode(',',\$sql_set) . \" WHERE "
+            . self::getPK($app->getDBName(), $page->getTable()) 
+            . " = '{\$id}'";
+
+        $update_code = "\t\tglobal \$conn;\n"
+            . "\n\t\t\$columns = array(" . implode(',', $visible_columns) . ");"
+            . "\n\t\t\$sql_set = array();"
+            . "\n\n\t\tforeach(\$columns as \$column){"
+            . "\n\t\t\tif(\$_POST[\$update_column] == \"\")"
+            . "\n\t\t\t\t\$sql_set[] = \"{\$update_column} = NULL\";"
+            . "\n\t\t\telse"
+            . "\n\t\t\t\t\$sql_set[] = \"{\$update_column} = '{\$_POST[\$update_column]}'\";"
+            . "\n\t\t}\n"
+            . "\n\t\tif (!\$conn ) {"
+            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']}: \" . pg_last_error();"
+            . "\n\t\t\texit;"
+            . "\n\t\t}\n"
+            . "\n\t\t\$rs = pg_query(\$conn,\"{$sql}\");\n"
+            . "\n\t\tif (!\$rs) {"
+            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strupdatefail']}: \" . pg_last_error(\$conn);"
+            . "\n\t\t\tpg_free_result(\$rs);"
+            . "\n\t\t\treturn false;"
+            . "\n\t\t} else {"
+            . "\n\t\t\tpg_free_result(\$rs);"
+            . "\n\t\t\treturn true;"
+            . "\n\t\t}";
+
+        $form_action_code = "\t\techo \"{$page->getFilename()}\";";
+        $buttons_code = "\t\techo \"". self::genCreateUpdateBtns($app, $page) . "\";";
+        $clear_code = "\t\treturn (\$val == '' || \$val == NULL) ? \"NULL\" : \"'{\$val}'\";";
 
         //Creates the code function
-        $function_code .= self::getFunction("printFormAction", "", "\n\techo \"{$page->getFilename()}\";");
+        $function_code = self::getFunction("printFormAction", "", $form_action_code);
+        $function_code .= self::getFunction("clearVars", "", $clear_code);
         $function_code .= self::getFunction("updateRow", "\$id", $update_code);
+        $function_code .= self::getFunction("printActionButtons", "", $buttons_code);
+
         $args = array("\$schema,\$table", "\$pk", "\$field", "\$selected_pk");
-        $function_code .= self::getFunction("printFKOptions", $args, $printfk_code);
+        $function_code .= self::getFunction("printFKOptions", $args, self::printFkOptions($app));
         $function_code .= self::generateOpFunc(null, $code);
+
         return self::generatePageFile($page, $path, $function_code);
     }
 
@@ -1091,11 +1096,14 @@ class Generator extends GenHtml {
 
         $code = "<div class=\\\"actions-wrapper {$cur_op}\\\">";
 
-        if($create !== false)
-            $code   .= "\n\t\t\t" . GenHtml::submit('insertButton', $lang['strsave']);
+        if($create !== false && $cur_op != 'update'){
+            $caption = $cur_op == 'create' ? $lang['strsave'] : $lang['strinsert'];
+            $code   .= "\n\t\t\t" . GenHtml::submit('insertButton', $caption);
+        }
 
-        if($update !== false)
+        if($update !== false && $cur_op != 'create'){
             $code   .= "\n\t\t\t" . GenHtml::submit('updateButton', $lang['stredit']);
+        }
         
         if($report !== false && $cur_op == 'update')
             $code   .= "\n\t\t\t" . GenHtml::link($lang['strdelete'],
@@ -1139,6 +1147,26 @@ class Generator extends GenHtml {
                     '?operation=delete&amp;selected[]=' . $id);
 
         return $code;
+    }
+
+    public static function printFkOptions($app){
+        return "\t\tglobal \$conn;\n"
+            . "\n\t\tif (!\$conn) { "
+            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']}:\" . pg_last_error();"
+            . "\n\t\t\texit;"
+            . "\n\t\t}"
+            . "\n\n\t\ttry {"
+            . "\n\t\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
+            . "\n\t\t} catch (Exception \$e) {"
+            . "\n\t\t\t\$rs = NULL;"
+            . "\n\t\t}"
+            . "\n\n\t\tif (!\$rs) {"
+            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
+            . "\n\t\t\texit;"
+            . "\n\t\t}"
+            . "\n\t\twhile (\$row = pg_fetch_array(\$rs))"
+            . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\">{\$row[1]}</option>\";"
+            . "\n\n\t\tpg_free_result(\$rs);";
     }
 }
 

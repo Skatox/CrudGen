@@ -116,6 +116,8 @@ div.login {
       background: #dcf7dd; }
   #operation-wrapper input, #operation-wrapper select {
     padding: 4px; }
+  #operation-wrapper input[type="submit"] {
+    cursor: pointer; }
   #operation-wrapper .pagination-wrapper, #operation-wrapper .limit-wrapper {
     text-align: center;
     font-size: small; }

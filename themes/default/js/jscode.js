@@ -1,3 +1,5 @@
+var crudgenDelTxt = 'Are you sure you want to delete selected data?'
+
 function submitForm(){
 	$('#operation-form').submit()
 }
@@ -31,10 +33,12 @@ $().ready(function(){
 		})
 	})
 
-	$('.actions-wrapper .deleteButton').on('click', function(e){
+	$('.actions-wrapper .deleteButton, .actions a.deleteButton').on('click', function(e){
 		e.preventDefault()
-		$('#operation-form').attr('action','?operation=delete')
-		submitForm()
+		if(confirm(crudgenDelTxt)){
+			$('#operation-form').attr('action','?operation=delete')
+			submitForm()
+		}
 	})
 
 	$('#selectedAll').on('click', function(){

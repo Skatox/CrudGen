@@ -136,6 +136,7 @@ div.login { margin-left: 250px; margin-top: 30px; width: 400px; }
 		tr:hover { background: $lightGreen; }
 	}
 	input, select { padding: 4px; }
+	input[type="submit"] { cursor: pointer; }
 
 	.pagination-wrapper, .limit-wrapper { text-align: center; font-size: small;	}
 	.limit-wrapper {  select { margin-right: 5px;	}	}
