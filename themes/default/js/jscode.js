@@ -1,10 +1,22 @@
-var crudgenDelTxt = 'Are you sure you want to delete selected data?'
-
 function submitForm(){
 	$('#operation-form').submit()
 }
 
+function hasItemsSelected(){
+	var selected = false
+	$('#results input[type="checkbox"]').each(function(){
+		if($(this).prop('checked')){
+			selected = true
+		}
+	})
+	return selected
+}
+
 $().ready(function(){
+	var crudgenDelTxt = $('#strconfirmdelete').val();
+
+	$('.date').datepicker({ dateFormat: 'yy-mm-dd' });
+	
 	$('.offset').on('change', function(){12
 		submitForm()
 	})
@@ -33,11 +45,24 @@ $().ready(function(){
 		})
 	})
 
-	$('.actions-wrapper .deleteButton, .actions a.deleteButton').on('click', function(e){
+	$('.actions-wrapper .deleteButton').on('click', function(e){
+		e.preventDefault()
+
+		if(hasItemsSelected()){
+			if(confirm(crudgenDelTxt)){
+				$('#operation-form').attr('action','?operation=delete')
+				submitForm()
+			}			
+		} else {
+			alert($('#noselected').val())
+		}
+
+	})
+
+	$('.actions .deleteButton').on('click', function(e){
 		e.preventDefault()
 		if(confirm(crudgenDelTxt)){
-			$('#operation-form').attr('action','?operation=delete')
-			submitForm()
+			window.location = $(this).attr('href');
 		}
 	})
 
@@ -46,4 +71,10 @@ $().ready(function(){
 	})
 
 	$('#operation-form').validate();
+
+	$('.actions-wrapper .updateButton').on('click', function(e){
+		e.preventDefault();
+		$('#operation-form').attr('action', $(this).attr('href') );
+		$('#operation-form').submit();
+	});
 })

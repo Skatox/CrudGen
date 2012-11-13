@@ -5,9 +5,7 @@
         <title><?php printTitle();?></title>
         <link href="css/reset.css" rel="stylesheet" type="text/css" />
         <link href="css/style.css" rel="stylesheet" type="text/css" />
-        <script type="text/javascript" src="js/jquery-1.8.0.min.js"></script>
-        <script type="text/javascript" src="js/jquery.validate.min.js"></script>
-        <script type="text/javascript" src="js/jscode.js"></script>
+        <link href="css/smoothness/jquery-ui-1.9.1.custom.min.css" rel="stylesheet" type="text/css" />
     </head>
     <body>
         <div id="header">
@@ -49,5 +47,9 @@
             </div>
         </div>
         <?php printMessages() ?>
+        <script type="text/javascript" src="js/jquery-1.8.0.min.js"></script>
+        <script type="text/javascript" src="js/jquery-ui-1.9.1.custom.min.js"></script>
+        <script type="text/javascript" src="js/jquery.validate.min.js"></script>
+        <script type="text/javascript" src="js/jscode.js"></script>
     </body>
 </html>

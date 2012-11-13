@@ -120,6 +120,9 @@
     $lang['stremptyrows'] = 'No data matching your search criteria.';
     $lang['strgotopage'] = 'Go to page: ';
     $lang['strselectval'] = '--Select--';
+    $lang['strnoselecteditems'] = 'Please select some items to continue.';
+    $lang['strconfirmdelete'] = 'Are you sure you want to delete selected data?';
+    $lang['strwriteprimarykey'] = 'Write the primary key of the record you want to edit.';
     
     //Errors
     $lang['strerrnotbl'] = 'Selected schema is empty, you must have some tables to create an application.';
@@ -150,5 +153,8 @@
     $lang['strerrordbconn'] = 'There is no connection to the database';
     $lang['strerrorquery'] = 'There was a problem when executing the query';
     $lang['strrowdeletedbad'] =  'There was a problem when deleting the data';
-    
+    $lang['strnorowstodelete'] =  'There are no selected items to delete.';
+    $lang['strnoselecteditem'] =  'There are no selected items to edit.';
+    $lang['strnomoreitems'] =  'There are no more items to edit.';
+    $lang['strpageerredit'] = 'There was a problem when editing the information.';    
 ?>

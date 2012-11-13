@@ -40,6 +40,8 @@ $footerHeight: 33px;
 
 body{ font-family: AftaSans; overflow-x: hidden; }
 
+p { margin-bottom: 10px;}
+
 #header, #footer {
 	background: $black;
 	color: $fontWhite;
@@ -137,6 +139,10 @@ div.login { margin-left: 250px; margin-top: 30px; width: 400px; }
 	}
 	input, select { padding: 4px; }
 	input[type="submit"] { cursor: pointer; }
+	input.required {
+		background: url('../img/required.png') scroll no-repeat right 7px transparent;
+		padding-right: 10px;
+	}
 
 	.pagination-wrapper, .limit-wrapper { text-align: center; font-size: small;	}
 	.limit-wrapper {  select { margin-right: 5px;	}	}
@@ -165,9 +171,9 @@ div.login { margin-left: 250px; margin-top: 30px; width: 400px; }
 	}
 	.button:hover { background-color: $lightGray; }
 
-	/* Insert pages */
-	.insert-wrapper {
+	.form-wrapper {
 		text-align: center;
+		padding-bottom: 20px;
 
 		label {
 			margin-right: 10px;
@@ -176,7 +182,7 @@ div.login { margin-left: 250px; margin-top: 30px; width: 400px; }
 			text-transform: capitalize;
 			text-align: right;
 			width: 200px;
-			line-height: $rowHeight;
+			line-height: 25px;
 		}
 		input { width: 200px; }
 		.row { height: $rowHeight; margin-bottom: 5px; }
@@ -226,3 +232,5 @@ div.message { background: $bgMessage; border: 1px solid $borderMessage; }
 	.generated { float: left; font-size: 0.8em; line-height: 29px; }
 	.xhtml-valid{ float:right; padding-right: 5px; }
 }
+
+div.ui-datepicker{ font-size:13px; }

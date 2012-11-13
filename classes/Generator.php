@@ -39,7 +39,7 @@ class Generator extends GenHtml {
             . "\n\t\t\t\t\t\n"
             . "\n\t\techo \"" . GenHtml::hidden('operation', 'insert')
             . "\n\t\t\t" . GenHtml::hidden('page_insert_table', $page->getTable())
-            . "\n\t\t\t<div class=\\\"insert-wrapper\\\">";
+            . "\n\t\t\t<div class=\\\"form-wrapper\\\">";
 
         //Prints the input box for each field
         $columns = array();
@@ -72,7 +72,8 @@ class Generator extends GenHtml {
                 } else {
                     $class_code = self::generateValidationClasses($page->getTable(), $fields[$i]->getName());
                     $code .= "\n\t\t\t\t\t\t<input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" "
-                    . " id=\\\"{$input_id}\\\" class=\\\"{$class_code}\\\" value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/>";
+                    . " id=\\\"{$input_id}\\\" class=\\\"{$class_code}\\\" "
+                    . "value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/>";
                 }
 
                 $code .= "\n\t\t\t\t\t</div>"
@@ -86,12 +87,12 @@ class Generator extends GenHtml {
         $code .=  "\n\t\t</div>\";";
 
         //Generates code for functions
-        $buttons_code = "\t\techo \"". self::genCreateUpdateBtns($app, $page) . "\";";
+        $buttons_code = "\t\techo \"" . self::genCreateUpdateBtns($app, $page) . "\";";
 
         $sql = "\n\t\t\tsprintf(\"INSERT INTO {$app->getSchema()}.{$page->getTable()}"
             . " (" . implode(",", $columns) . ") "
-            . "\n\t\t\t\t\tVALUES (" . implode(",", $sprintf) . ")\",\n\t\t\t\t\t"
-            .  implode(", ", $values) . ")";
+            . "\n\t\t\t\tVALUES (" . implode(",", $sprintf) . ")\",\n\t\t\t\t"
+            .  implode(",\n\t\t\t\t", $values) . ")";
 
         $insert_code = "\t\tglobal \$conn;"
             . "\n\t\tif (!\$conn) {"
@@ -151,13 +152,17 @@ class Generator extends GenHtml {
         if ($pk == -1)
             $pk = $page->fields[0]->getName();
 
-        $code = "\n\t\t\$column_order = isset(\$_POST['column_order']) ? "
+        $code = "\n\t\tunset(\$_SESSION['selected']); //clears any selected value "
+                . "\n\t\t\$column_order = isset(\$_POST['column_order']) ? "
                 . "\$_POST['column_order'] : '{$pk}';"
                 . "\n\t\t\$order = isset(\$_POST['order']) ? "
                 . "\$_POST['order'] : 'ASC';"
                 . "\n\t\techo \"" 
                 . GenHtml::hidden('column_order','{$column_order}', 'column_order')
-                . "\n\t\t\t\t" . GenHtml::hidden('order','{$order}', 'order') . "\";";
+                . "\n\t\t\t\t" . GenHtml::hidden('order','{$order}', 'order')
+                . "\n\t\t\t\t" . GenHtml::hidden('deletetext', $app->lang['strconfirmdelete'], 'deletetext')
+                . "\n\t\t\t\t" 
+                . GenHtml::hidden('noselected', $app->lang['strnoselecteditems'], 'noselected') . "\";";
 
         $table_code = "\n\t\techo \"<table id=\\\"results\\\">"
                     . "\n\t\t\t\t<thead>"
@@ -166,7 +171,6 @@ class Generator extends GenHtml {
                     . "<input type=\\\"checkbox\\\" id=\\\"selectedAll\\\" "
                     . "value=\\\"0\\\"/>"
                     . "\n\t\t\t\t\t\t</th>";
-
 
         //variable to counts tables in the sql
         $tables = 0;
@@ -216,12 +220,19 @@ class Generator extends GenHtml {
         $sql = "SELECT " . implode(",", $selects) . " FROM " . implode(",", $from);
 
         //Adds deletion request at the begining of the code
-        $code .= "\n\n\t\tif(isset(\$_REQUEST[\"operation\"])){"
-            . "\n\t\t\tif(\$_REQUEST[\"operation\"] == \"delete\" "
-            . "&& isset(\$_REQUEST[\"selected\"])){"
-            . "\n\t\t\t\tif (deleteRecords(\$_REQUEST[\"selected\"]))"
-            . "\n\t\t\t\t\t\$_SESSION['msg'] = \"{$app->lang['strdelsucess']}\";"
-            . "\n\t\t\t\t\$_POST[\"term\"] = \"\";"
+        $code .= "\n\n\t\t//Deletion process"
+            . "\n\t\tif(isset(\$_REQUEST[\"operation\"])){"
+            . "\n\t\t\tif(\$_REQUEST[\"operation\"] == \"delete\"){"
+            . "\n\t\t\t\tif(isset(\$_REQUEST[\"selected\"])){"
+            . "\n\t\t\t\t\tif (deleteRecords(\$_REQUEST[\"selected\"])){"
+            . "\n\t\t\t\t\t\t\$_SESSION['msg'] = \"{$app->lang['strdelsucess']}\";"
+            . "\n\t\t\t\t\t\t\$_POST[\"term\"] = \"\";"
+            . "\n\t\t\t\t\t} else {"
+            . "\n\t\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strrowdeletedbad']}\";"
+            . "\n\t\t\t\t\t}"
+            . "\n\t\t\t\t} else {"
+            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strnorowstodelete']}\";"
+            . "\n\t\t\t\t}"
             . "\n\t\t\t}"
             . "\n\t\t}"
             . "\n\n\t\tglobal \$conn;"
@@ -284,8 +295,8 @@ class Generator extends GenHtml {
 
         $filter_code = self::generateReportFilterBox($app, $page);
         $delete_code = self::generateDeleteCode($app, $page->getTable(), $pk );
-        $buttons_code = "\n\t\techo \"". self::genReportBtns($app, $page) . "\";";
-        $form_action = "\n\t\techo \"{$page->getFilename()}\";";
+        $buttons_code = "\t\techo \"". self::genReportBtns($app, $page) . "\";";
+        $form_action = "\t\techo \"{$page->getFilename()}\";";
 
         //Creates the args array for the function
         $function_code = self::getFunction("printFilterBox", '', $filter_code);
@@ -308,40 +319,59 @@ class Generator extends GenHtml {
     public static function generateUpdatePage($path, Application $app, Page $page) {
         global $lang;
 
-        $page->sortFields();
-
-        //If updates info at DB then generates input page
-        $code = "\t\$uindex = isset(\$_POST[\"uindex\"]) ? \$_POST[\"uindex\"] : 0;\n"
-            . "\n\t\tif(isset(\$_POST[\"selected\"]))"
-            . "\n\t\t\t\$_SESSION[\"selected\"] = \$_POST[\"selected\"];\n"
-            . "\n\t\tif(isset(\$_POST[\"operation\"]))"
-            . "\n\t\t\tif(\$_POST[\"operation\"]==\"update\"){"
-            . "\n\t\t\t\t\$success= updateRow(\$_SESSION[\"selected\"][\$uindex]);\n"
-            . "\n\t\t\t\tif(\$success) {"
-            . "\n\t\t\t\t\t\$_SESSION['msg'] = \"{$app->lang['strupdatesuccess']}\";"
-            . "\n\t\t\t\t\t\$uindex++;"
-            . "\n\t\t\t\t\techo \"". GenHtml::hidden('uindex', "{\$uindex}") . "\";"
-            . "\n\t\t\t\t}"
-            . "\n\t\t\t\tif(\$uindex == count(\$_SESSION[\"selected\"])){"
-            . "\n\t\t\t\t\tunset(\$_POST[\"operation\"]);"
-            . "\n\t\t\t\t\tunset(\$_SESSION[\"selected\"]);"
-            . "\n\t\t\t\t} else {"
-            . "\n\t\t\t\t\t\$_POST[\"operation\"] = \"edit\";"
-            . "\n\t\t\t\t}"
-            . "\n\t\t\t}\n"
-            . "\n\t\tif(isset(\$_SESSION[\"selected\"]) && (\$_POST[\"operation\"]==\"edit\")){"
-            . "\n\t\t\tglobal \$conn;\n"
-            . "\n\t\t\tif (!\$conn) {"
-            . "\n\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']} :\" . pg_last_error();"
-            . "\n\t\t\t\texit;"
-            . "\n\t\t\t}"
-            . "\n\t\t\t\$cant = count(\$_SESSION[\"selected\"]);"
-            . "\n\t\t\t\$id = \$cant > 1 ? \$_SESSION[\"selected\"][\$uindex] : \$_SESSION[\"selected\"][0];"
-            . "\n\t\t\t\$query = \"SELECT ";
-
         $fields = $page->fields;
         $columns = array(); 
         $visible_columns = array(); 
+        $page->sortFields();
+
+        //If updates info at DB then generates input page
+        $code = "\t\$index = isset(\$_POST[\"crudgen_index\"]) ? \$_POST[\"crudgen_index\"] : 0;"
+            . "\n\t\t\$operation = isset(\$_REQUEST[\"crudgen_operation\"]) ? "
+            . "\$_REQUEST[\"crudgen_operation\"] : 'edit';"
+            . "\n\n\t\tif(isset(\$_REQUEST[\"selected\"]))"
+            . "\n\t\t\tif(empty(\$_REQUEST[\"selected\"][\$index])){"
+            . "\n\t\t\t\t\$operation = 'none';"
+            . "\n\n\t\t\t} else {"
+            . "\n\t\t\t\t\$_SESSION[\"selected\"] = \$_REQUEST[\"selected\"];"
+            . "\n\t\t\t}\n"
+            . "\n\n\t\tif(empty(\$_SESSION[\"selected\"])){"
+            . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strnoselecteditem']}\";"
+            . "\n\t\t\t\$operation = 'none';"
+            . "\n\t\t}"
+            . "\n\n\t\tif(\$operation == \"update\"){"
+            . "\n\t\t\t\t\$success= updateRow(\$_SESSION[\"selected\"][\$index]);\n"
+            . "\n\t\t\t\tif(\$success) {"
+            . "\n\t\t\t\t\t\$_SESSION['msg'] = \"{$app->lang['strupdatesuccess']}\";"
+            . "\n\t\t\t\t\t\$index++;";
+
+        for ($i = 0; $i < count($fields); $i++) {
+            if ($fields[$i]->isOnPage()) {
+                $code .="\n\t\t\t\t\tunset(\$_POST[\"{$fields[$i]->getName()}\"]);";   
+            }
+        }
+
+        $code .= "\n\t\t\t\t} else {"
+            . "\n\t\t\t\t\t\$operation = \"edit\";"
+            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strpageerredit']}\";"
+            . "\n\t\t\t\t}"
+            . "\n\t\t\t\tif(\$index == count(\$_SESSION[\"selected\"])){"
+            . "\n\t\t\t\t\t\$operation = 'none';"
+            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strnomoreitems']}\";"
+            . "\n\t\t\t\t\tunset(\$_SESSION['msg']);"
+            . "\n\t\t\t\t\tunset(\$_SESSION[\"selected\"]);"
+            . "\n\t\t\t\t} else {"
+            . "\n\t\t\t\t\t\$operation = \"edit\";"
+            . "\n\t\t\t\t}"
+            . "\n\n\t\t}"
+            . "\n\n\t\tif(\$operation == \"edit\"){"
+            . "\n\t\t\t\tglobal \$conn;\n"
+            . "\n\t\t\t\tif (!\$conn) {"
+            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']} :\" . pg_last_error();"
+            . "\n\t\t\t\t\texit;"
+            . "\n\t\t\t\t}"
+            . "\n\t\t\t\t\$cant = count(\$_SESSION[\"selected\"]);"
+            . "\n\t\t\t\t\$id = \$cant > 1 ? \$_SESSION[\"selected\"][\$index] : \$_SESSION[\"selected\"][0];"
+            . "\n\t\t\t\t\$query = sprintf(\"SELECT ";
 
         for ($i = 0; $i < count($fields); $i++) {
             if ($fields[$i]->isOnPage()) {
@@ -351,22 +381,30 @@ class Generator extends GenHtml {
         }
 
         $code .= implode(', ', $columns ) 
-            . " FROM {$app->getSchema()}.{$page->getTable()} WHERE "
-            . self::getPK($app->getDBName(), $page->getTable()) . " = {\$id}\";\n"
-            . "\n\t\t\techo \$query;\n"
-            /*. "\n\t\t\t\$rs = pg_query(\$conn, \$query);\n"
-            . "\n\t\t\tif (!\$rs)"
-            . "\n\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
-            . "\n\t\t\t\texit;"
-            . "\n\t\t\t}\n"
-            . "\n\t\t\t\$row = pg_fetch_array(\$rs);\n"
-            . "\n\t\t\tif(!\$row ) {"
-            . "\n\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strrecordnoexist']}\";"
-            . "\n\t\t\t\texit;"
-            . "\n\t\t\t}"*/
-            . "\n\t\t\techo \"". GenHtml::hidden('operation', 'update') . "\";"
-            . "\n\t\t\techo \"". GenHtml::hidden('uindex', "\". \$uindex . \"")
-            . "\n\t\t\t<div class=\\\"insert-wrapper\\\">";
+            . "\n\t\t\t\t\tFROM {$app->getSchema()}.{$page->getTable()} WHERE "
+            . self::getPK($app->getDBName(), $page->getTable()) . " = %s\", \$id );\n"
+            . "\n\t\t\t\t\$rs = pg_query(\$conn, \$query);\n"
+            . "\n\t\t\t\tif (!\$rs){"
+            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
+            . "\n\t\t\t\t\texit;"
+            . "\n\t\t\t\t}\n"
+            . "\n\t\t\t\t\$row = pg_fetch_array(\$rs);\n"
+            . "\n\t\t\t\tif(!\$row ) {"
+            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strrecordnoexist']}\";"
+            . "\n\t\t\t\t\t\$operation = 'none';"
+            . "\n\t\t\t\t} else {";
+
+        for ($i = 0; $i < count($fields); $i++) {
+            if ($fields[$i]->isOnPage()) {
+                $code .="\n\t\t\t\t\t\$_POST[\"{$fields[$i]->getName()}\"] = "   
+                . "isset( \$_POST[\"{$fields[$i]->getName()}\"] ) ? "   
+                . "\$_POST[\"{$fields[$i]->getName()}\"] : \$row[\"{$fields[$i]->getName()}\"] ;";   
+            }
+        }
+        
+        $code .= "\n\t\t\t\t\techo \"". GenHtml::hidden('crudgen_operation', 'update') . "\";"
+            . "\n\t\t\t\t\techo \"". GenHtml::hidden('crudgen_index', "\". \$index . \"")
+            . "\n\t\t\t\t\t\t<div class=\\\"form-wrapper\\\">";
 
         //Prints the input box for each field
         $clear_vars = "";
@@ -377,51 +415,55 @@ class Generator extends GenHtml {
         for ($i = 0; $i < count($fields); $i++) {
             if ($fields[$i]->isOnPage()) {
                 $input_id = "column-{$i}";
-                $clear_vars .="\n\t\tif(!isset(\$_POST[\"{$fields[$i]->getName()}\"]))"
-                    . "\n\t\t\t\$_POST[\"{$fields[$i]->getName()}\"] = '';\n";
+                $clear_vars .="\n\t\t\tif(!isset(\$_POST[\"{$fields[$i]->getName()}\"]))"
+                    . "\n\t\t\t\t\$_POST[\"{$fields[$i]->getName()}\"] = '';\n";
 
-                $code .= "\n\t\t\t\t<div class=\\\"row\\\">"
-                    . "\n\t\t\t\t\t<div class=\\\"label-wrapper\\\">"
-                    . "\n\t\t\t\t\t\t<label for=\\\"{$input_id}\\\">{$fields[$i]->getDisplayName()}</label>"
-                    . "\n\t\t\t\t\t</div>"
-                    . "\n\t\t\t\t\t\t<div class=\\\"value-wrapper\\\">";
+                $code .= "\n\t\t\t\t\t\t<div class=\\\"row\\\">"
+                    . "\n\t\t\t\t\t\t\t<div class=\\\"label-wrapper\\\">"
+                    . "\n\t\t\t\t\t\t\t\t<label for=\\\"{$input_id}\\\">{$fields[$i]->getDisplayName()}</label>"
+                    . "\n\t\t\t\t\t\t\t</div>"
+                    . "\n\t\t\t\t\t\t\t<div class=\\\"value-wrapper\\\">";
 
                 if ($fields[$i]->isFK()) {
-                    $code .= "\n\t\t\t\t\t\t<select name=\\\"{$fields[$i]->getName()}\\\" "
+                    $code .= "\n\t\t\t\t\t\t\t<select name=\\\"{$fields[$i]->getName()}\\\" "
                         . "class=\\\""
                         . self::generateValidationClasses($page->getTable(), $fields[$i]->getName())
                         . "\\\">"
-                        . "\n\t\t\t\t\t\t<option value=\\\"\\\">{$app->lang['strselectval']}</option>\";"
+                        . "\n\t\t\t\t\t\t\t<option value=\\\"\\\">{$app->lang['strselectval']}</option>\";"
                         . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}','"
                         . self::getPK($app->getDBName(), $fields[$i]->getRemoteTable()) 
                         . "','{$fields[$i]->getRemoteField()}'); "
-                        . "echo \"\n\t\t\t\t\t\t</select>";
+                        . "echo \"\n\t\t\t\t\t\t\t</select>";
                 } else {
                     $class_code = self::generateValidationClasses($page->getTable(), $fields[$i]->getName());
-                    $code .= "\n\t\t\t\t\t\t<input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" "
-                    . " id=\\\"{$input_id}\\\" class=\\\"{$class_code}\\\" value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/>";
+                    $code .= "\n\t\t\t\t\t\t\t<input type=\\\"text\\\" name=\\\"{$fields[$i]->getName()}\\\" "
+                    . " id=\\\"{$input_id}\\\" class=\\\"{$class_code}\\\" "
+                    . "value=\\\"{\$_POST[\"{$fields[$i]->getName()}\"]}\\\"/>";
                 }
 
-                $code .= "\n\t\t\t\t\t</div>"
-                    . "\n\t\t\t\t</div>";
+                $code .= "\n\t\t\t\t\t\t\t</div>"
+                    . "\n\t\t\t\t\t\t</div>";
 
                 $columns[] = $fields[$i]->getName();
                 $values[] = "clearVars(\$_POST[\"{$fields[$i]->getName()}\"])";
             }
         }
-        $code .=  "\n\t\t</div>\";"
-            . "\n\t}";
+        $code .=  "\n\t\t\t\t\t</div>\";"
+            . "\n\t\t\t\t}"
+            . "\n\n\t\t}"
+            . "\n\n\t\tif(\$operation == \"none\"){"
+            . "\n\t\t\techo \"<div class=\\\"form-wrapper\\\">"
+            . "\n\t\t\t\t<p>{$app->lang['strwriteprimarykey']}</p>"
+            . "\n\t\t\t\t<div class=\\\"label-wrapper\\\">"
+            . "\n\t\t\t\t\t<label for=\\\"selected\\\">{$lang['strprimarykey']}</label>"
+            . "\n\t\t\t\t</div>"
+            . "\n\t\t\t\t<div class=\\\"value-wrapper\\\">"
+            . "\n\t\t\t\t\t<input type=\\\"text\\\" id=\\\"selected\\\" "
+            . "name=\\\"selected[]\\\" value=\\\"\\\"/>"
+            . "\n\t\t\t\t</div>"
+            . "\n\t\t\t</div>\";"
+            . "\n\t\t}";
 
-
-        /*$buttons_code = self::genReportBtns($app, $page);
-        $only_right_buttons = self::genReportBtns($app, $page, true);
-
-        $pk_request = "<div class=\\\"full-wide\\\"><div class=\\\"center-buttons\\\">
-                        <a class=\\\"button sendForm\\\" href=\\\"#u\\\" rel=\\\"{$page->getFilename()}\\\"><span>{$lang['strupdate']}</span></a>
-                    </div></div>{$only_right_buttons}";
-        $code .= "\n\t\t{$buttons_code}\";\n\t\t}\n\tif(!isset(\$_POST[\"operation\"])|| (count(\$_POST[\"selected\"])<1)){"
-            . "\n\t\t\techo \"{$pk_request}\";\n\t}";*/
-        
         //Generates code for functions
         $sql = "UPDATE {$app->getSchema()}.{$page->getTable()} SET \" . "
             . "implode(',',\$sql_set) . \" WHERE "
@@ -432,10 +474,10 @@ class Generator extends GenHtml {
             . "\n\t\t\$columns = array(" . implode(',', $visible_columns) . ");"
             . "\n\t\t\$sql_set = array();"
             . "\n\n\t\tforeach(\$columns as \$column){"
-            . "\n\t\t\tif(\$_POST[\$update_column] == \"\")"
-            . "\n\t\t\t\t\$sql_set[] = \"{\$update_column} = NULL\";"
+            . "\n\t\t\tif(\$_POST[\$column] == \"\")"
+            . "\n\t\t\t\t\$sql_set[] = \"{\$column} = NULL\";"
             . "\n\t\t\telse"
-            . "\n\t\t\t\t\$sql_set[] = \"{\$update_column} = '{\$_POST[\$update_column]}'\";"
+            . "\n\t\t\t\t\$sql_set[] = \"{\$column} = '{\$_POST[\$column]}'\";"
             . "\n\t\t}\n"
             . "\n\t\tif (!\$conn ) {"
             . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrordbconn']}: \" . pg_last_error();"
@@ -452,7 +494,7 @@ class Generator extends GenHtml {
             . "\n\t\t}";
 
         $form_action_code = "\t\techo \"{$page->getFilename()}\";";
-        $buttons_code = "\t\techo \"". self::genCreateUpdateBtns($app, $page) . "\";";
+        $buttons_code = "\t\techo \"" . self::genCreateUpdateBtns($app, $page) . "\";";
         $clear_code = "\t\treturn (\$val == '' || \$val == NULL) ? \"NULL\" : \"'{\$val}'\";";
 
         //Creates the code function
@@ -493,12 +535,14 @@ class Generator extends GenHtml {
      * @return string code to connect to the database
      */
     public static function getConnection($library, $user='DB_USER', $password='DB_PASS'){
+        $code = "\n\n\t";
+        
         if ($library == 'pgsql') {
-            $code = "\$conn = pg_connect(\"host='\" . DB_HOST . \"' "
+            $code .= "\$conn = pg_connect(\"host='\" . DB_HOST . \"' "
                 . "port='\" . DB_PORT . \"' password='\" . " . $password . " . \"' "
                 . "user='\" . " . $user . " . \"' dbname='\" . DB_NAME . \"'\");";
         } else {
-            $code = "\$conn = new PDO(\"pgsql:dbname=\" . DB_NAME . \";"
+            $code .= "\$conn = new PDO(\"pgsql:dbname=\" . DB_NAME . \";"
                 . "host=\" . DB_HOST . \":\" . DB_PORT . \"\","
                 . "'\" . " . $user . " . \"','\" . " . $password . " . \"');";
         }
@@ -530,7 +574,7 @@ class Generator extends GenHtml {
                 break;
             default:
                 $code = Generator::getConnection($app->library);
-                $login_code = 'return true;';
+                $login_code = "\t\treturn true;";
         }
 
         $code .= Generator::getFunction("checkAccess", "", $login_code);
@@ -926,11 +970,14 @@ class Generator extends GenHtml {
                 switch($attrs->fields['type']){
                     case 'date':
                         $class_code .= "date ";
+                        break;
                     case 'numeric':
                         $class_code .= "number ";   
+                        break;
                     case 'smallint':
                     case 'integer':
                         $class_code .= "digits ";   
+                        break;
                 }
             }
             $attrs->moveNext();
@@ -1016,30 +1063,30 @@ class Generator extends GenHtml {
 
         global $lang;
 
-        return "\n\t\tif(!\$nrows) return '';\n"
-            . "\n\t\t\$pages = ceil(\$nrows/\$limit);"
+        return "\t\tif(!\$nrows) return '';\n"
+            . "\n\t\t\$pages = ceil(\$nrows/\$limit);\n"
             . "\n\t\tif(\$pages < 2) return ;\n"
             . "\n\t\techo \"<div class=\\\"pagination-wrapper\\\">\";"
             . "\n\t\t\$max = RESULTS_LIMIT;"
             . "\n\t\t\$current = isset(\$_POST['offset']) ? \$_POST['offset'] : RESULTS_START;"
             . "\n\t\t\$previous = \$current - 1;"
-            . "\n\t\t\$next = \$current + 1;"
-            . "\n\t\t\tif(\$current > 1)"
-            . "\n\t\t\t\techo \"<a class=\\\"pagination\\\" rel=\\\""
-            . "\". \$previous .\"\\\">{$lang['strprev']}</a>\";"
-            . "\n\t\t\techo \"<label>{$pagText}</label>\";"
-            . "\n\t\t\techo \"<select name=\\\"offset\\\" class=\\\"offset\\\">\";"
+            . "\n\t\t\$next = \$current + 1;\n"
+            . "\n\t\tif(\$current > 1)"
+            . "\n\t\t\techo \"<a class=\\\"pagination\\\" rel=\\\""
+            . "\". \$previous .\"\\\">{$lang['strprev']}</a>\"\n;"
+            . "\n\t\techo \"<label>{$pagText}</label>\";"
+            . "\n\t\techo \"<select name=\\\"offset\\\" class=\\\"offset\\\">\";"
             . "\n\n\t\tfor(\$i=1;\$i <= \$pages;\$i++){"
-            . "\n\n\t\t\techo '<option ';"
-            . "\n\t\t\t\tif(\$current == \$i)"
-            . "\n\t\t\t\t\techo 'selected=\"selected\"';"
-            . "\n\t\t\t\techo '>' . \$i .'</option>';"
-            . "\n\t\t\t}"
-            . "\n\t\t\techo \"</select>\";"
-            . "\n\t\t\tif(\$current < \$pages)"
-            . "\n\t\t\t\techo \"<a class=\\\"pagination\\\" rel=\\\""
+            . "\n\t\t\techo '<option ';"
+            . "\n\t\t\tif(\$current == \$i)"
+            . "\n\t\t\t\techo 'selected=\"selected\"';"
+            . "\n\t\t\techo '>' . \$i .'</option>';"
+            . "\n\t\t}"
+            . "\n\t\techo \"</select>\";"
+            . "\n\n\t\tif(\$current < \$pages)"
+            . "\n\t\t\techo \"<a class=\\\"pagination\\\" rel=\\\""
             . "\". \$next .\"\\\">{$lang['strnext']}</a>\";"
-            . "echo \"</div>\";";
+            . "\n\t\techo \"</div>\";";
     }
 
     /**
@@ -1104,14 +1151,14 @@ class Generator extends GenHtml {
         if($update !== false && $cur_op != 'create'){
             $code   .= "\n\t\t\t" . GenHtml::submit('updateButton', $lang['stredit']);
         }
-        
-        if($report !== false && $cur_op == 'update')
-            $code   .= "\n\t\t\t" . GenHtml::link($lang['strdelete'],
-                    'deleteButton button', $page_ops['filenames'][$report]);
 
         if($report !== false)
             $code   .= "\n\t\t\t" . GenHtml::link($lang['strcancel'],
                     'reportButton button', $page_ops['filenames'][$report]);
+        else
+            $code   .= "\n\t\t\t" . GenHtml::link($lang['strcancel'],
+                    'reportButton button', $page->getFilename() 
+                    . '?crudgen_operation=none');
 
         $code .= "\n\t\t</div>";
 
@@ -1156,7 +1203,8 @@ class Generator extends GenHtml {
             . "\n\t\t\texit;"
             . "\n\t\t}"
             . "\n\n\t\ttry {"
-            . "\n\t\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
+            . "\n\t\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s "
+            ." FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
             . "\n\t\t} catch (Exception \$e) {"
             . "\n\t\t\t\$rs = NULL;"
             . "\n\t\t}"
@@ -1169,5 +1217,4 @@ class Generator extends GenHtml {
             . "\n\n\t\tpg_free_result(\$rs);";
     }
 }
-
 ?>

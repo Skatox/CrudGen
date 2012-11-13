@@ -8,6 +8,6 @@ phpPgAdmin CrudGen Plugin Installation Guide
 
 2. Set up the CrudGen database.
 
-   If you want to enable CrudGen (which are a useful feature for creating CRUD pages in minutes)
+   If you want to enable CrudGen (a useful feature for creating CRUD pages in minutes)
    then go to the 'sql' subdirectory and view the SQL script for your database.  It
    will contain instructions on how to set up the CrudGen database.
