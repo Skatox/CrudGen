@@ -12,9 +12,9 @@
             <h1><?php printTitle();?></h1>
             <h2><?php printDescr();?></h2>
         </div>
+        <?php if(checkAccess()) :  ?>
         <div id="content-wrapper">
 
-        <?php if(checkAccess()) :  ?>
             
             <div id="content">
                 <h2><?php printPageTitle() ?></h2>
@@ -32,12 +32,15 @@
                     </div>
                 </form>
             </div>
-            <?php endif; ?>
         </div>
         <div id="sidebar">
             <h3>Menu</h3>
             <?php printMenu();?>
+            <div class="logout">
+                <?php printLogout();?>
+            </div>
         </div>
+        <?php endif; ?>
         <div id="footer">
             <div class="generated">Generated with CrudGen.</div>
             <div class="xhtml-valid">

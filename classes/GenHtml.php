@@ -7,8 +7,7 @@
 	     * @param $class class of the link
 	     * @param $href hyperlink
 	     */
-	    public static function link($txt , $class, $href = '#')
-	    {
+	    public static function link($txt , $class, $href = '#'){
 	    	return "<a class=\\\"{$class}\\\" href=\\\"{$href}\\\">{$txt}</a>";
 	    }
 

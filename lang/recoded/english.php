@@ -137,6 +137,7 @@
     $lang['strnouniquename'] = 'Another application has the same name, you must use a new one.';
     $lang['strerrorappsavedb'] = 'There was a problem when saving the application into the database.';
     $lang['strnopages'] = 'There are no pages for this application.';
+    $lang['strnopagesgenerate'] = 'This application has no pages ready to be generated. Please add their information first.';
     $lang['strnopagetitle'] = 'You must give a page title.';
     $lang['strnopagefilename'] = 'You must write the name of the file.';
     $lang['strerrnoextension'] = 'You must write the php extension in to the filename.';

@@ -108,8 +108,11 @@ class CrudGen extends Plugin {
         );
 
         return array(
-            'attr' => array('href' => array('url' => $url, 'urlvars' => array_merge($urlvars, $extra_vars))),
-            'content' => $content
+                'attr' => array('href' => array('
+                    url' => $url, 
+                    'urlvars' => array_merge($urlvars, $extra_vars))
+                ),
+                'content' => $content
         );
     }
 
@@ -196,8 +199,10 @@ class CrudGen extends Plugin {
 
         for ($i = 1; $i <= $fields_count; $i+= 1) {
             echo "\n\t\t\t\t<option value=\"{$i}\"";
+           
             if ($selected_field == $i)
                 echo " selected=\"selected\"";
+           
             echo">{$i}</option>";
         }
     }
@@ -212,6 +217,7 @@ class CrudGen extends Plugin {
             'tabs' => array('add_plugin_tabs'),
             'trail' => array('add_plugin_trail'),
         );
+        
         return $hooks;
     }
 
@@ -236,6 +242,7 @@ class CrudGen extends Plugin {
             'generate_app',
             'tree'
         );
+        
         return $actions;
     }
 
@@ -245,7 +252,6 @@ class CrudGen extends Plugin {
      * @param $plugin_functions_parameters
      */
     function add_plugin_tabs(&$plugin_functions_parameters) {
-
         $tabs = &$plugin_functions_parameters['tabs'];
 
         switch ($plugin_functions_parameters['section']) {
@@ -1503,7 +1509,7 @@ class CrudGen extends Plugin {
         }
     }
 
-    function generate_app() {
+    function generate_app($msg = '') {
         global $lang, $misc;
 
         if (!isset($_REQUEST["app_id"]))
@@ -1515,20 +1521,21 @@ class CrudGen extends Plugin {
         $download_files = isset($_REQUEST['download']);
         $app_theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
         $app_id = $_REQUEST['app_id'];
-
+        
         $app = new Application();
         $app->load($app_id);
 
         if (!$download_files) {
 
             $themes = Generator::getThemes();
-
             $misc->printHeader($lang['strdatabase']);
             $misc->printBody();
             $misc->printTrail('schema');
             $misc->printTabs('schema', 'applications');
-
             $misc->printTitle($this->lang['strgenerating'] . ' ' . $app->getName());
+
+            if (!empty($msg))
+                $misc->printMsg($msg);
 
             echo "<form id=\"genops\" method=\"post\" action=\"\">\n";
             echo "\n\t\t<input type=\"hidden\" name=\"action\" value=\"generate_app\" />";
@@ -1550,7 +1557,6 @@ class CrudGen extends Plugin {
             }
 
             echo "\n\t\t</td></tr>";
-
             echo "\t<tr>\n\t\t<th class=\"data left\">{$this->lang['strpreview']}</th>\n";
             echo "\t<td><img id=\"thumbnail\" src=\"plugins/CrudGen/themes/{$app_theme}/thumbnail.png\" ";
             echo "width=\"320\" height=\"240\" alt=\"{$this->lang['strpreview']}\" /></td></tr>\n";
@@ -1564,12 +1570,14 @@ class CrudGen extends Plugin {
             $misc->printFooter();
         } else {
             $app->lang = $this->lang;
-            $app->generate();
+            if(!$app->generate()){
+                unset($_REQUEST['download']);
+                self::generate_app($this->lang['strnopagesgenerate']);
+            }
         }
     }
 
     function tree() {
-
         global $misc;
 
         $applications = Application::getApps($_REQUEST['database'], $_REQUEST['schema']);
@@ -1595,7 +1603,5 @@ class CrudGen extends Plugin {
         $misc->printTreeXML($applications, $attrs);
         exit;
     }
-
 }
-
 ?>

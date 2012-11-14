@@ -6,12 +6,12 @@ class Page {
     private $app_id;
     private $page_id;
     private $page_filename;
-    private $page_title;
-    private $descr;
     private $date_created;
     private $in_main_menu;
     private $table;
-    private $page_text;
+    public $page_title;
+    public $page_text;
+    public $descr;
     public $operation;
     public $fields = array();
 
@@ -38,7 +38,7 @@ class Page {
         $num = 0;
         foreach ($this->fields as $field) {
             if ($field->isOnPage())
-                $num = $num + 1;
+                $num++;
         }
 
         return $num;
@@ -54,15 +54,6 @@ class Page {
             $index[] = $field->getOrder();
         }
         return array_multisort($index, $this->fields, 0);
-    }
-
-    /**
-     * Returns this page's description
-     *
-     * @return string this page's description
-     */
-    public function getDescription() {
-        return $this->descr;
     }
 
     /**
@@ -145,16 +136,6 @@ class Page {
     }
 
     /**
-     * Returns the text of this page, this text describe the process or the info in this page
-     * wich is entered by the application's owner
-     *
-     * @return string of text of this page
-     */
-    public function getPageText() {
-        return $this->page_text;
-    }
-
-    /**
      * Sets this page text, this text will be show inside the page
      * @param $page_text desired text to show in the page
      */
@@ -177,14 +158,6 @@ class Page {
      */
     public function setTable($name) {
         $this->table = $name;
-    }
-
-    /**
-     * Gets this page's title
-     * @return string with this page's title
-     */
-    public function getTitle() {
-        return $this->page_title;
     }
 
     /**
@@ -430,7 +403,7 @@ class Page {
      */
     public function buildPost() {
         if (!isset($_POST['page_title']))
-            $_POST['page_title'] = $this->getTitle();
+            $_POST['page_title'] = $this->page_title;
 
         if (!isset($_POST['page_filename']))
             $_POST['page_filename'] = $this->page_filename;
@@ -439,12 +412,11 @@ class Page {
             $_POST['on_main_menu'] = $this->inMainMenu() ? "selected" : null;
 
         if (!isset($_POST["page_descr"]))
-            $_POST["page_descr"] = $this->getDescription();
+            $_POST["page_descr"] = $this->descr;
 
         if (!isset($_POST["page_text"]))
-            $_POST["page_text"] = $this->getPageText();
+            $_POST["page_text"] = $this->page_text;
     }
-
 }
 
 ?>

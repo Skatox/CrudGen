@@ -13,6 +13,9 @@ $borderError: #FF2222;
 
 $rowHeight: 30px;
 
+/**Login**/
+$loginWidth: 300px;
+
 /**Dimensions**/
 $menuWidth: 200px;
 $menuPadding: 15px;
@@ -41,6 +44,10 @@ $footerHeight: 33px;
 body{ font-family: AftaSans; overflow-x: hidden; }
 
 p { margin-bottom: 10px;}
+
+a { color: $darkGreen; text-decoration: none;}
+a:hover { text-decoration: underline }
+a:visited { color: $darkGreen }
 
 #header, #footer {
 	background: $black;
@@ -98,7 +105,37 @@ p { margin-bottom: 10px;}
 	}
 	#info { margin: 5px 0 15px; padding: 10px 10px 10px 0; }
 }
-div.login { margin-left: 250px; margin-top: 30px; width: 400px; }
+div.login { 
+	margin: 25px auto; 
+	padding: 20px; 
+	width: $loginWidth; 
+
+	label {
+		display: block;
+		float: left;
+		padding-right: 10px;
+		width: 80px;
+		text-align: right;
+		line-height: 30px;
+	}
+	input[type="text"], input[type="password"] {
+		height: 20px;
+		padding: 3px;
+	}
+
+	.row { padding: 10px 0;}
+
+	.buttons {
+		text-align: right;
+		input { padding: 10px }
+	}
+}
+
+div.logout {
+	text-align: center;
+	padding: 5px;
+	border-top: 1px dotted $lightGreen;
+}
 
 #operation-wrapper {
 	width: 100%;

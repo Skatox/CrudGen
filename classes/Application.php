@@ -6,8 +6,6 @@
  * store application information
  */
 class Application {
-    /*     * * Attributes: ** */
-
     private $app_id;
     private $app_name;
     private $descr;
@@ -43,11 +41,10 @@ class Application {
      */
     public function deletePage($id) {
         $success = false;
-        foreach ($this->pages as $page) {
-            if ($page->getPageID() == $id) {
+        foreach ($this->pages as $page) 
+            if ($page->getPageID() == $id) 
                 return $page->delete();
-            }
-        }
+
         return false;
     }
 
@@ -60,10 +57,11 @@ class Application {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = sprintf("SELECT app_name FROM crudgen.application WHERE app_name='%s'", $app_name);
+        $sql = sprintf("SELECT app_name FROM crudgen.application "
+            . "WHERE app_name='%s'", $app_name);
         $rs = $driver->selectField($sql, "app_name");
 
-        return !($rs == -1);
+        return $rs != -1;
     }
 
     /**
@@ -77,24 +75,31 @@ class Application {
         $commonfile = fopen($filename, 'w');
 
         if ($commonfile) {
-            $functions = Generator::getGlobals($this);
-            $functions .= Generator::getFunction("printTitle", "", "\t\techo '{$this->app_name}';");
-            $functions .= Generator::getFunction("printDescr", "", "\t\techo '{$this->descr}';");
-            $functions .= Generator::getFunction("printMenu", "", $this->getMenu());
-            
             $pag_code = Generator::generatePagination($this->lang['strgotopage']);
-            $functions .= Generator::getFunction("printPagination", array("\$nrows", "\$limit"), $pag_code);
-
             $rows_code = Generator::generateReportRowsSelect($this->lang);
-            $functions .= Generator::getFunction("printRowsRadios", '', $rows_code);
 
-            $notificationCode = "\t\tif(isset(\$_SESSION['error'])) echo \"<div class=\\\"errorMsg\\\">{\$_SESSION['error']}</div>\";";
-            $notificationCode .= "\n\t\tif(isset(\$_SESSION['msg'])) echo \"<div class=\\\"message\\\">{\$_SESSION['msg']}</div>\";";            
-            $notificationCode .= "\n\t\tunset(\$_SESSION['error']);";            
-            $notificationCode .= "\n\t\tunset(\$_SESSION['msg']);";            
-            $functions .= Generator::getFunction("printMessages", '', $notificationCode);
+            $functions = Generator::getGlobals($this)
+                . Generator::getFunction("printTitle", "", "\t\techo '{$this->app_name}';")
+                . Generator::getFunction("printDescr", "", "\t\techo '{$this->descr}';")
+                . Generator::getFunction("printMenu", "", $this->getMenu())
+                . Generator::getFunction("printPagination", array("\$nrows", "\$limit"), $pag_code)
+                . Generator::getFunction("printRowsRadios", '', $rows_code);
 
-            $functions .= Generator::getAuthCode($this); //For none just creates the db connection
+            $notificationCode = "\t\tif(isset(\$_SESSION['error'])) "
+                . "echo \"<div class=\\\"errorMsg\\\">{\$_SESSION['error']}</div>\";"
+                . "\n\t\tif(isset(\$_SESSION['msg'])) "
+                . "echo \"<div class=\\\"message\\\">{\$_SESSION['msg']}</div>\";"
+                . "\n\t\tunset(\$_SESSION['error']);"
+                . "\n\t\tunset(\$_SESSION['msg']);";            
+            
+            $logoutCode = "\t\tif(isset(\$_SESSION['crudgen_user']))"
+                . "\n\t\t\techo \"" 
+                . Generator::link($lang['strlogout'], 'logout', "?logout=true") . "\";";
+
+            $functions .= Generator::getFunction("printMessages", '', $notificationCode)
+                . Generator::getAuthCode($this) //For none just creates the db connection
+                . Generator::getFunction("printLogout", "", $logoutCode);
+
             fwrite($commonfile, "<?php");
             fwrite($commonfile, $functions);
             fwrite($commonfile, "\n?>");
@@ -149,6 +154,7 @@ class Application {
 
         $origipath = $path;
         $handler = opendir($path);
+
         while (true) {
             $file = readdir($handler);
             if ($file == "." or $file == "..") {
@@ -177,19 +183,30 @@ class Application {
      */
     public function generate() {
         global $misc;
+        $pagesToGenerate = false;
 
-        $this->theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
-        $this->library = isset($_REQUEST['app_library']) ? $_REQUEST['app_library'] : 'pgsql';
-        $app_folder = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->getFolderName();
+        //validates if there are any page to generate
+        foreach ($this->pages as $page){
+            if(!empty($page->page_title)){
+                $pagesToGenerate = true;
+                break;
+            }
+        }
+        if($pagesToGenerate){
+            $this->theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
+            $this->library = isset($_REQUEST['app_library']) ? $_REQUEST['app_library'] : 'pgsql';
+            $app_folder = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->getFolderName();
 
-        Generator::recursive_copy("plugins/CrudGen/themes/" . $this->theme, $app_folder);
-        $this->writeCommonFile($app_folder);
+            Generator::recursive_copy("plugins/CrudGen/themes/" . $this->theme, $app_folder);
+            $this->writeCommonFile($app_folder);
 
-        foreach ($this->pages as $page)
-            if (!Generator::generatePage($this, $page, $app_folder))
-                $misc->printMsg("{$this->lang['strerrpagegen']} {$page->getFilename()}.");
+            foreach ($this->pages as $page)
+                if (!Generator::generatePage($this, $page, $app_folder))
+                    $misc->printMsg("{$this->lang['strerrpagegen']} {$page->getFilename()}.");
 
-        unlink($app_folder . DIRECTORY_SEPARATOR . 'index.php');
+            unlink($app_folder . DIRECTORY_SEPARATOR . 'index.php');
+        } 
+        return $pagesToGenerate;
     }
 
     /**
@@ -290,6 +307,7 @@ class Application {
         $filename = str_replace('/', '', $filename);
         $filename = str_replace(' ', '_', $filename);
         $filename = str_replace('\\', '', $filename);
+        
         return $filename;
     }
 
@@ -459,14 +477,14 @@ class Application {
         $menu_code = "";
 
         foreach ($this->pages as $page) {
-            if ($page->inMainMenu()) {
-                $menu_code.="\n\t\techo '<li><a href=\"{$page->getFilename()}\" class=\"menu-link\">";
-                $menu_code.=htmlspecialchars($page->getTitle()) . "</a></li>';";
-            }
+            if ($page->inMainMenu())
+                $menu_code.="\n\t\techo '<li>"
+                    . "<a href=\"{$page->getFilename()}\" class=\"menu-link\">"
+                    . htmlspecialchars($page->page_title) . "</a></li>';";
         }
         
         if (!empty($menu_code))
-            $menu_code = "\t\techo '<ul class=\"main-menu\">';" . $menu_code . "\n\t\techo '</ul>';";
+            $menu_code = "\t\techo '<ul class=\"main-menu\">';{$menu_code}\n\t\techo '</ul>';";
         
         return $menu_code;
     }
@@ -497,9 +515,11 @@ class Application {
 
         $server_info = $misc->getServerInfo();
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = sprintf("SELECT a.app_id,a.app_name,a.descr,a.date_created,a.db_schema,a.db_name,"
+        $sql = sprintf("SELECT a.app_id,a.app_name,a.descr,"
+                . "a.date_created,a.db_schema,a.db_name,"
                 . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages "
-                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND a.app_id=%d "
+                . "FROM crudgen.application a "
+                . "WHERE app_owner='{$server_info["username"]}' AND a.app_id=%d "
                 . "ORDER BY a.date_created DESC", $app_id);
 
         $rs = $driver->selectSet($sql);
@@ -533,9 +553,12 @@ class Application {
 
         $server_info = $misc->getServerInfo();
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = sprintf("SELECT a.app_id,a.app_name,a.descr,a.date_created,a.db_schema,a.db_name,"
+        $sql = sprintf("SELECT a.app_id,a.app_name,a.descr,"
+                . "a.date_created,a.db_schema,a.db_name,"
                 . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages "
-                . "FROM crudgen.application a WHERE app_owner='{$server_info["username"]}' AND db_name='%s' AND db_schema='%s' "
+                . "FROM crudgen.application a "
+                . "WHERE app_owner='{$server_info["username"]}' "
+                . "AND db_name='%s' AND db_schema='%s' "
                 . "ORDER BY a.date_created DESC", $database, $schema);
         $rs = $driver->selectSet($sql);
 
@@ -598,7 +621,11 @@ class Application {
         $sql = sprintf("INSERT INTO crudgen.application (app_name, descr,db_name, "
                 . "db_schema, db_user,db_pass, db_host, db_port, "
                 . "auth_method, auth_table,auth_user_col,auth_pass_col) "
-                . "VALUES ('%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s') RETURNING app_id", $this->app_name, $this->descr, $this->db_name, $this->db_schema, $this->db_user, $this->db_pass, $this->db_host, $this->db_port, $this->auth_method, $this->auth_table, $this->auth_user_col, $this->auth_pass_col);
+                . "VALUES ('%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s'"
+                . ") RETURNING app_id", $this->app_name, $this->descr, $this->db_name,
+                    $this->db_schema, $this->db_user, $this->db_pass, $this->db_host, 
+                    $this->db_port, $this->auth_method, $this->auth_table, 
+                    $this->auth_user_col, $this->auth_pass_col);
 
         $app_id = $driver->selectField($sql, "app_id");
         $this->app_id = $app_id;
@@ -627,7 +654,8 @@ class Application {
                 . "db_user='{$this->db_user}',db_pass='{$this->db_pass}', "
                 . "db_host='{$this->db_host}', db_port='{$this->db_port}',"
                 . "auth_method='{$this->auth_method}', auth_table='{$this->auth_table}',"
-                . "auth_user_col='{$this->auth_user_col}',auth_pass_col='{$this->auth_pass_col}' "
+                . "auth_user_col='{$this->auth_user_col}',"
+                . "auth_pass_col='{$this->auth_pass_col}' "
                 . "WHERE app_id={$this->app_id}";
 
         $rs = $driver->execute($sql);
@@ -699,11 +727,14 @@ class Application {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
-        $sql = sprintf("SELECT p.page_filename FROM crudgen.pages p, crudgen.application a "
-                . "WHERE a.app_id=%d AND p.page_filename='%s'", $this->app_id, $page_name);
+        $sql = sprintf("SELECT p.page_filename "
+            . "FROM crudgen.pages p, crudgen.application a "
+            . "WHERE a.app_id=%d AND p.page_filename='%s'", 
+            $this->app_id, $page_name);
+
         $rs = $driver->selectField($sql, "page_filename");
 
-        return ($rs == -1) ? false : true;
+        return $rs != -1;
     }
 
     /**
@@ -712,13 +743,12 @@ class Application {
      */
     public function isUniqueFilename($page_id, $filename) {
         foreach ($this->pages as $page) {
-            if (($page->getFilename() == $filename) && ($page->getId() != $page_id))
+            if (($page->getFilename() == $filename) && 
+                ($page->getId() != $page_id))
                 return false;
         }
 
         return true;
     }
-
 }
-
 ?>

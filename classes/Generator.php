@@ -174,8 +174,9 @@ class Generator extends GenHtml {
 
         //variable to counts tables in the sql
         $tables = 0;
-        $from = array("{$app->getSchema()}.{$page->getTable()} a");
+        $from = "{$app->getSchema()}.{$page->getTable()} a ";
         $wheres = array();
+        $joins = array();
         $selects = array("a.{$pk}");
 
         //Adds table's headers to $code and creates the sql sentence
@@ -188,14 +189,15 @@ class Generator extends GenHtml {
 
                 if ($fields[$i]->isFK()) {
                     $column_name = $fields[$i]->getRemoteField();
-                    $selects[] = "a{$tables}." . $column_name;
-                    $from[] = "{$fields[$i]->getRemoteTable()} a{$tables}";
+                    $selects[] = " a{$tables}." . $column_name;
 
                     //Checks for remote PK and compares with fk (in the sql sentence)
                     $fk_pk = Generator::getPK($app->getDBName(),
                         $fields[$i]->getRemoteTable());
 
-                    $wheres[] = "a.{$fields[$i]->getName()}=a{$tables}.{$fk_pk} ";
+                    $joins[] = "\n\t\t\t\tINNER JOIN {$fields[$i]->getRemoteTable()} a{$tables} "
+                            . " ON a.{$fields[$i]->getName()}=a{$tables}.{$fk_pk} ";
+
                     $tables++;
                 }
                 else {
@@ -217,7 +219,7 @@ class Generator extends GenHtml {
                     . "\n\t\t\t<tbody>\";";
 
         //Builds sql sentence
-        $sql = "SELECT " . implode(",", $selects) . " FROM " . implode(",", $from);
+        $sql = "SELECT " . implode(",", $selects) . "\n\t\t\t\tFROM " . $from . implode(" ", $joins);
 
         //Adds deletion request at the begining of the code
         $code .= "\n\n\t\t//Deletion process"
@@ -320,8 +322,6 @@ class Generator extends GenHtml {
         global $lang;
 
         $fields = $page->fields;
-        $columns = array(); 
-        $visible_columns = array(); 
         $page->sortFields();
 
         //If updates info at DB then generates input page
@@ -356,8 +356,6 @@ class Generator extends GenHtml {
             . "\n\t\t\t\t}"
             . "\n\t\t\t\tif(\$index == count(\$_SESSION[\"selected\"])){"
             . "\n\t\t\t\t\t\$operation = 'none';"
-            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strnomoreitems']}\";"
-            . "\n\t\t\t\t\tunset(\$_SESSION['msg']);"
             . "\n\t\t\t\t\tunset(\$_SESSION[\"selected\"]);"
             . "\n\t\t\t\t} else {"
             . "\n\t\t\t\t\t\$operation = \"edit\";"
@@ -371,18 +369,37 @@ class Generator extends GenHtml {
             . "\n\t\t\t\t}"
             . "\n\t\t\t\t\$cant = count(\$_SESSION[\"selected\"]);"
             . "\n\t\t\t\t\$id = \$cant > 1 ? \$_SESSION[\"selected\"][\$index] : \$_SESSION[\"selected\"][0];"
-            . "\n\t\t\t\t\$query = sprintf(\"SELECT ";
+            . "\n\t\t\t\t\$query = sprintf(\"";
+
+        $tables = 0;
+        $joins = array();
+        $selects = array();
+        $update_columns = array();
 
         for ($i = 0; $i < count($fields); $i++) {
             if ($fields[$i]->isOnPage()) {
-                $columns[] = $fields[$i]->getName();
-                $visible_columns[] = "'{$fields[$i]->getName()}'";
+
+                $selects[] = "a." . $fields[$i]->getName();
+                $update_columns[] = "'{$fields[$i]->getName()}'";
+
+                if ($fields[$i]->isFK()) {
+                    $selects[] = "a{$tables}." . $fields[$i]->getRemoteField();
+                    
+                    $fk_pk = Generator::getPK($app->getDBName(), $fields[$i]->getRemoteTable());
+
+                    $joins[] = "\n\t\t\t\tINNER JOIN {$fields[$i]->getRemoteTable()} a{$tables} "
+                            . " ON a.{$fields[$i]->getName()}=a{$tables}.{$fk_pk} ";
+
+                    $tables++;
+                }
             }
         }
 
-        $code .= implode(', ', $columns ) 
-            . "\n\t\t\t\t\tFROM {$app->getSchema()}.{$page->getTable()} WHERE "
-            . self::getPK($app->getDBName(), $page->getTable()) . " = %s\", \$id );\n"
+        $code .= "SELECT " . implode(", ", array_values($selects) ) 
+            . "\n\t\t\t\t\tFROM {$app->getSchema()}.{$page->getTable()} a "
+            . implode(" ", $joins) 
+            . " WHERE a." . self::getPK($app->getDBName(), $page->getTable()) 
+            . " = %s\", \$id);\n"
             . "\n\t\t\t\t\$rs = pg_query(\$conn, \$query);\n"
             . "\n\t\t\t\tif (!\$rs){"
             . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
@@ -432,7 +449,7 @@ class Generator extends GenHtml {
                         . "\n\t\t\t\t\t\t\t<option value=\\\"\\\">{$app->lang['strselectval']}</option>\";"
                         . "printFKOptions('{$app->getSchema()}','{$fields[$i]->getRemoteTable()}','"
                         . self::getPK($app->getDBName(), $fields[$i]->getRemoteTable()) 
-                        . "','{$fields[$i]->getRemoteField()}'); "
+                        . "','{$fields[$i]->getRemoteField()}', \$_POST['{$fields[$i]->getName()}']); "
                         . "echo \"\n\t\t\t\t\t\t\t</select>";
                 } else {
                     $class_code = self::generateValidationClasses($page->getTable(), $fields[$i]->getName());
@@ -471,7 +488,7 @@ class Generator extends GenHtml {
             . " = '{\$id}'";
 
         $update_code = "\t\tglobal \$conn;\n"
-            . "\n\t\t\$columns = array(" . implode(',', $visible_columns) . ");"
+            . "\n\t\t\$columns = array(" . implode(',', $update_columns) . ");"
             . "\n\t\t\$sql_set = array();"
             . "\n\n\t\tforeach(\$columns as \$column){"
             . "\n\t\t\tif(\$_POST[\$column] == \"\")"
@@ -535,7 +552,7 @@ class Generator extends GenHtml {
      * @return string code to connect to the database
      */
     public static function getConnection($library, $user='DB_USER', $password='DB_PASS'){
-        $code = "\n\n\t";
+        $code = '';
         
         if ($library == 'pgsql') {
             $code .= "\$conn = pg_connect(\"host='\" . DB_HOST . \"' "
@@ -580,7 +597,7 @@ class Generator extends GenHtml {
         $code .= Generator::getFunction("checkAccess", "", $login_code);
 
         //Global code
-        $code .= "\n\n\tif(isset(\$_POST['login_close']))"
+        $code .= "\n\n\tif(isset(\$_REQUEST['logout']))"
                 . "\n\t\tlogout();\n\n\t";
 
         return $code;
@@ -604,21 +621,22 @@ class Generator extends GenHtml {
         if ($app->library == 'pgsql') {
 
             $code .= "\n\t\t\tif(isset(\$_POST['crudgen_user']) "
-                . "&& isset(\$_POST['crudgen_passwd']) )"
-                . "\n\t\t\t\t" . Generator::getConnection($app->library,
+                . "&& isset(\$_POST['crudgen_passwd']) ){"
+                . "\n\t\t\t\t\t" . Generator::getConnection($app->library,
                     "\$_POST['crudgen_user']", "\$_POST['crudgen_passwd']")
-                . "\n\t\t\t\treturn true;"
-                . "\n\t\t\tif(\$conn){"
-                . "\n\t\t\t\t\$_SESSION['crudgen_user']=\$_POST['crudgen_user'];"
-                . "\n\t\t\t\t\$_SESSION['crudgen_passwd']=\$_POST['crudgen_passwd'];"
-                . "\n\t\t\t\treturn true;"
-                . "\n\t\t\t}else {"
-                . "\n\t\t\t\t\$_SESSION['error']=\"{$app->lang['strloginerror']}\";"
+                . "\n\t\t\t\tif(\$conn){"
+                . "\n\t\t\t\t\t\$_SESSION['crudgen_user']=\$_POST['crudgen_user'];"
+                . "\n\t\t\t\t\t\$_SESSION['crudgen_passwd']=\$_POST['crudgen_passwd'];"
+                . "\n\t\t\t\t\treturn true;"
+                . "\n\t\t\t\t}else {"
+                . "\n\t\t\t\t\t\$_SESSION['error']=\"{$app->lang['strloginerror']}\";"
+                . "\n\t\t\t\t\tinclude \"login.inc.php\";"
+                . "\n\t\t\t\t\treturn false;"
+                . "\n\t\t\t\t}"
+                . "\n\t\t\t} else {"
                 . "\n\t\t\t\tinclude \"login.inc.php\";"
                 . "\n\t\t\t\treturn false;"
-                . "\n\t\t\t}"
-                . "\n\t\t\tinclude \"login.inc.php\";"
-                . "\n\t\t\treturn false;";
+                . "\n\t\t\t}";
         } else {
             $code .= "if(isset(\$_POST['crudgen_user']) "
                 . "&& isset(\$_POST['crudgen_passwd']) ){"
@@ -676,7 +694,7 @@ class Generator extends GenHtml {
             . "\n\t\t\t\t\treturn true;"
             . "\n\t\t\t\t} else {"
             . "\n\t\t\t\t\t\$_SESSION['error']=\"{$app->lang['strloginerror']}\";"
-            . '\n\t\t\t\t\tinclude "login.inc.php";'
+            . "\n\t\t\t\t\tinclude \"login.inc.php\";"
             . "\n\t\t\t\t}"
             . "\n\t\t\t} else {"
             . "\n\t\t\t\tinclude \"login.inc.php\";"
@@ -696,9 +714,9 @@ class Generator extends GenHtml {
     public static function generatePageFile(Page $page, $path, $op_code) {
         $code = file_get_contents($path . "/index.php"); //Content from theme file
 
-        $title = $page->getTitle() == '' ? '&nbsp;' : $page->getTitle();
-        $descr = $page->getDescription() == '' ? '&nbsp;' : $page->getDescription();
-        $txt = $page->getPageText() == '' ? '&nbsp;' : $page->getPageText();
+        $title = $page->page_title == '' ? '&nbsp;' : $page->page_title;
+        $descr = $page->descr == '' ? '&nbsp;' : $page->descr;
+        $txt = $page->page_text == '' ? '&nbsp;' : $page->page_text;
 
         $functions = self::getFunction("printPageTitle", "", "\t\techo '{$title}';");
         $functions .= self::getFunction("printPageDescr", "", "\t\techo '{$descr}';");
@@ -943,7 +961,7 @@ class Generator extends GenHtml {
 
         while ($folder = $dir->read())
                 if (($folder != '.') && ($folder != '..'))
-                $themes[] = $folder;
+                    $themes[] = $folder;
 
         $dir->close();
         return $themes;
@@ -960,28 +978,24 @@ class Generator extends GenHtml {
         global $data;
 
         $class_code = '';
-        $attrs = $data->getTableAttributes($table_name);
+        $attrs = $data->getTableAttributes($table_name, $name);
+        
+        if ($attrs->fields['attnotnull'] == 't')
+            $class_code .= 'required ';
 
-        while (!$attrs->EOF) {
-            if($attrs->fields['attname'] == $name) {
-                if ($attrs->fields['attnotnull'] == 't')
-                    $class_code .= 'required ';
-
-                switch($attrs->fields['type']){
-                    case 'date':
-                        $class_code .= "date ";
-                        break;
-                    case 'numeric':
-                        $class_code .= "number ";   
-                        break;
-                    case 'smallint':
-                    case 'integer':
-                        $class_code .= "digits ";   
-                        break;
-                }
-            }
-            $attrs->moveNext();
+        switch($attrs->fields['type']){
+            case 'date':
+                $class_code .= "date ";
+                break;
+            case 'numeric':
+                $class_code .= "number ";   
+                break;
+            case 'smallint':
+            case 'integer':
+                $class_code .= "digits ";   
+                break;
         }
+
         return trim($class_code);;
     }
 
@@ -1212,8 +1226,11 @@ class Generator extends GenHtml {
             . "\n\t\t\t\$_SESSION['error'] = \"{$app->lang['strerrorquery']}\";"
             . "\n\t\t\texit;"
             . "\n\t\t}"
-            . "\n\t\twhile (\$row = pg_fetch_array(\$rs))"
-            . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\">{\$row[1]}</option>\";"
+            . "\n\t\twhile (\$row = pg_fetch_array(\$rs)){"
+            . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\"\";"
+            . "\n\t\t\tif(\$row[0] == \$selected_pk) echo \" selected=\\\"selected\\\"\";"
+            . "\n\t\t\techo \">{\$row[1]}</option>\";"
+            . "\n\t\t};"
             . "\n\n\t\tpg_free_result(\$rs);";
     }
 }
