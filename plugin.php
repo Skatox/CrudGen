@@ -99,6 +99,7 @@ class CrudGen extends Plugin {
      * Builds an external link array to simply code
      */
     private function build_nav_link($url, $action, $content, $extra_vars = array()) {
+        $content = html_entity_decode($content); //to support spanish accents
         $urlvars = array(
             'action' => $action,
             'server' => field('server'),
@@ -1214,7 +1215,7 @@ class CrudGen extends Plugin {
         $misc->printTrail('schema');
         $misc->printTabs('schema', 'applications');
 
-        $misc->printTitle($app->getName());
+        $misc->printTitle($app->name);
 
 
         if (!empty($msg))
@@ -1532,7 +1533,7 @@ class CrudGen extends Plugin {
             $misc->printBody();
             $misc->printTrail('schema');
             $misc->printTabs('schema', 'applications');
-            $misc->printTitle($this->lang['strgenerating'] . ' ' . $app->getName());
+            $misc->printTitle($this->lang['strgenerating'] . ' ' . $app->name);
 
             if (!empty($msg))
                 $misc->printMsg($msg);

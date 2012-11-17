@@ -7,7 +7,6 @@
  */
 class Application {
     private $app_id;
-    private $app_name;
     private $descr;
     private $date_created;
     private $app_owner;
@@ -17,14 +16,16 @@ class Application {
     private $db_schema;
     private $db_user;
     private $db_pass;
-    private $pages = array(); //object to represent pages in a application
     private $auth_method;
     private $auth_table;
     private $auth_user_col;
     private $auth_pass_col;
+    public $name;
+    public $folder;
     public $theme;
     public $library;
     public $lang;
+    public $pages = array(); //object to represent pages in a application
 
     /**
      * Adds a new page to this application
@@ -50,66 +51,18 @@ class Application {
 
     /**
      * Checks if there's another application with the same name
-     * @param $app_name name of application
+     * @param $name name of application
      * @return bool if there's an app in the db with same name,
      */
-    public function checkIfExists($app_name) {
+    public function checkIfExists($name) {
         global $misc;
 
         $driver = $misc->getDatabaseAccessor("phppgadmin");
         $sql = sprintf("SELECT app_name FROM crudgen.application "
-            . "WHERE app_name='%s'", $app_name);
+            . "WHERE app_name='%s'", $name);
         $rs = $driver->selectField($sql, "app_name");
 
         return $rs != -1;
-    }
-
-    /**
-     * Creates the common.php file, wich include common functions for the app
-     * @return bool about file creation process
-     */
-    public function writeCommonFile($path) {
-        global $misc, $lang;
-
-        $filename = $path . "/common.php";
-        $commonfile = fopen($filename, 'w');
-
-        if ($commonfile) {
-            $pag_code = Generator::generatePagination($this->lang['strgotopage']);
-            $rows_code = Generator::generateReportRowsSelect($this->lang);
-
-            $functions = Generator::getGlobals($this)
-                . Generator::getFunction("printTitle", "", "\t\techo '{$this->app_name}';")
-                . Generator::getFunction("printDescr", "", "\t\techo '{$this->descr}';")
-                . Generator::getFunction("printMenu", "", $this->getMenu())
-                . Generator::getFunction("printPagination", array("\$nrows", "\$limit"), $pag_code)
-                . Generator::getFunction("printRowsRadios", '', $rows_code);
-
-            $notificationCode = "\t\tif(isset(\$_SESSION['error'])) "
-                . "echo \"<div class=\\\"errorMsg\\\">{\$_SESSION['error']}</div>\";"
-                . "\n\t\tif(isset(\$_SESSION['msg'])) "
-                . "echo \"<div class=\\\"message\\\">{\$_SESSION['msg']}</div>\";"
-                . "\n\t\tunset(\$_SESSION['error']);"
-                . "\n\t\tunset(\$_SESSION['msg']);";            
-            
-            $logoutCode = "\t\tif(isset(\$_SESSION['crudgen_user']))"
-                . "\n\t\t\techo \"" 
-                . Generator::link($lang['strlogout'], 'logout', "?logout=true") . "\";";
-
-            $functions .= Generator::getFunction("printMessages", '', $notificationCode)
-                . Generator::getAuthCode($this) //For none just creates the db connection
-                . Generator::getFunction("printLogout", "", $logoutCode);
-
-            fwrite($commonfile, "<?php");
-            fwrite($commonfile, $functions);
-            fwrite($commonfile, "\n?>");
-            fclose($commonfile);
-
-            return true;
-        } else {
-            $misc->printMsg($this->lang['strnocommonfile']);
-            return false;
-        }
     }
 
     /**
@@ -120,11 +73,11 @@ class Application {
         global $data, $lang;
 
         //Generates user with application's name as base
-        $this->db_user = trim($this->app_name, "!$#@\"\\/");
+        $this->db_user = trim($this->name, "!$#@\"\\/");
         $this->db_user = str_replace(" ", "_", $this->db_user);
 
         //Generates a password for this user
-        $this->db_pass = crypt($this->app_name);
+        $this->db_pass = crypt($this->name);
     }
 
     /**
@@ -193,18 +146,18 @@ class Application {
             }
         }
         if($pagesToGenerate){
+            $generator = new Generator($this);
             $this->theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
             $this->library = isset($_REQUEST['app_library']) ? $_REQUEST['app_library'] : 'pgsql';
-            $app_folder = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->getFolderName();
+            $this->folder = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->getFolderName();
 
-            Generator::recursive_copy("plugins/CrudGen/themes/" . $this->theme, $app_folder);
-            $this->writeCommonFile($app_folder);
+            Generator::recursive_copy("plugins/CrudGen/themes/" . $this->theme, $this->folder);
+            $generator->writeCommonFile();
 
-            foreach ($this->pages as $page)
-                if (!Generator::generatePage($this, $page, $app_folder))
-                    $misc->printMsg("{$this->lang['strerrpagegen']} {$page->getFilename()}.");
+            if (!$generator->generatePages())
+                $misc->printMsg("{$this->lang['strerrpagegen']} {$page->getFilename()}.");
 
-            unlink($app_folder . DIRECTORY_SEPARATOR . 'index.php');
+            unlink($this->folder . DIRECTORY_SEPARATOR . 'index.php');
         } 
         return $pagesToGenerate;
     }
@@ -294,16 +247,8 @@ class Application {
      * Gets this application's name
      * @return string with application name
      */
-    public function getName() {
-        return $this->app_name;
-    }
-
-    /**
-     * Gets this application's name
-     * @return string with application name
-     */
     public function getFolderName() {
-        $filename = $this->app_name;
+        $filename = $this->name;
         $filename = str_replace('/', '', $filename);
         $filename = str_replace(' ', '_', $filename);
         $filename = str_replace('\\', '', $filename);
@@ -324,7 +269,7 @@ class Application {
      * @param $name desired application's name
      */
     public function setName($name) {
-        $this->app_name = $name;
+        $this->name = $name;
     }
 
     /**
@@ -456,7 +401,7 @@ class Application {
      * Sets REQUEST object from current object's attributes
      */
     public function buildRequest() {
-        $_REQUEST['name'] = $this->getName();
+        $_REQUEST['name'] = $this->name;
         $_REQUEST['db_host'] = $this->getDBHost();
         $_REQUEST['db_name'] = $this->getDBName();
         $_REQUEST['db_port'] = $this->getDBPort();
@@ -473,7 +418,7 @@ class Application {
      * This function generates the html code for the main menu of the application
      * @return string with the html code for the main menu
      */
-    private function getMenu() {
+    public function getMenu() {
         $menu_code = "";
 
         foreach ($this->pages as $page) {
@@ -581,7 +526,7 @@ class Application {
 
         //Saves application information in this object
         $this->app_id = $app_id;
-        $this->app_name = $rs->fields['app_name'];
+        $this->name = $rs->fields['app_name'];
         $this->descr = $rs->fields['descr'];
         $this->date_created = $rs->fields['date_created'];
         $this->app_owner = $rs->fields['app_owner'];
@@ -622,7 +567,7 @@ class Application {
                 . "db_schema, db_user,db_pass, db_host, db_port, "
                 . "auth_method, auth_table,auth_user_col,auth_pass_col) "
                 . "VALUES ('%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s'"
-                . ") RETURNING app_id", $this->app_name, $this->descr, $this->db_name,
+                . ") RETURNING app_id", $this->name, $this->descr, $this->db_name,
                     $this->db_schema, $this->db_user, $this->db_pass, $this->db_host, 
                     $this->db_port, $this->auth_method, $this->auth_table, 
                     $this->auth_user_col, $this->auth_pass_col);
@@ -648,7 +593,7 @@ class Application {
         // Create a new database access object.
         $driver = $misc->getDatabaseAccessor("phppgadmin");
 
-        $sql = "UPDATE crudgen.application SET app_name='{$this->app_name}',"
+        $sql = "UPDATE crudgen.application SET app_name='{$this->name}',"
                 . "descr='{$this->descr}',db_name='{$this->db_name}',"
                 . "db_schema='{$this->db_schema}',"
                 . "db_user='{$this->db_user}',db_pass='{$this->db_pass}', "
@@ -672,14 +617,14 @@ class Application {
 
         //Validates if it has a unique application name
         $sql = sprintf("SELECT app_name FROM crudgen.application "
-                . "WHERE app_name='%s'", $this->app_name);
+                . "WHERE app_name='%s'", $this->name);
 
         if (!empty($this->app_id))
             $sql .= "AND app_id <> {$this->app_id}";
 
-        $app_name = $driver->selectField($sql, "app_name");
+        $name = $driver->selectField($sql, "app_name");
 
-        return ($app_name == -1) ? true : false;
+        return ($name == -1) ? true : false;
     }
 
     /**

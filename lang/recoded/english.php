@@ -69,11 +69,7 @@
 
     //Pages
     $lang['strmanagepage'] = 'Manage pages';
-    $lang['strpagesnotcreated'] = 'Non created pages';
-    $lang['strpagescreated'] = 'Created pages';
     $lang['strpages'] = 'Pages';
-    $lang['strpagecreated'] = 'Pages created.';
-    $lang['strpagenotcreated'] = 'Pages not created.';
     $lang['straddpages'] = 'Add pages';
     $lang['streditpages'] = 'Edit page';
     $lang['strfilename'] = 'Filename';
@@ -97,8 +93,7 @@
     $lang['strmaninp'] = 'Manual input';
     $lang['strpriority'] = 'Display priority';
     $lang['strsavepagesuccessful'] = 'Page updated successfully';
-    $lang['strnopagesgenerated'] = 'All pages were generated for this application'; 
-    
+
     //Generation
     $lang['strtheme'] = 'Theme';
     $lang['strgenerating'] = 'Generating';

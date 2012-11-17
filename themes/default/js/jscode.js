@@ -13,7 +13,7 @@ function hasItemsSelected(){
 }
 
 $().ready(function(){
-	var crudgenDelTxt = $('#strconfirmdelete').val();
+	var crudgenDelTxt = $('#deletetext').val();
 
 	$('.date').datepicker({ dateFormat: 'yy-mm-dd' });
 	
