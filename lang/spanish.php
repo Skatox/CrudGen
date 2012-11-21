@@ -150,6 +150,7 @@
     $lang['strnocommonfile'] = 'Ocurrió un problema cuando se creaba el archivo común.';
     $lang['strloginerror'] = '¡Inicio de sesión incorrecto! Chequea si el usuario y contraseña son los correctos.';
     $lang['strerrpagegen'] = 'Ocurrió un error cuando se generaba ';
+    $lang['strgenerror'] = 'Ocurrió un error cuando se generaba la aplicación.';
     $lang['strerrordbconn'] = 'No hay conexión a la base de datos';
     $lang['strerrorquery'] = 'Ocurrió un problema cuando se ejecutaba la consulta';
     $lang['strrowdeletedbad'] =  'Ocurrió un problema cuando se eliminaban los datos';

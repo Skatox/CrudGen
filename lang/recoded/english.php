@@ -146,6 +146,7 @@
     $lang['strnocommonfile'] = 'There was a problem when creating the common file.';
     $lang['strloginerror'] = 'Login failed! Check if username and password are correct.';
     $lang['strerrpagegen'] = 'There was an error when generating ';
+    $lang['strgenerror'] = 'There was an error when generating the application.';
     $lang['strerrordbconn'] = 'There is no connection to the database';
     $lang['strerrorquery'] = 'There was a problem when executing the query';
     $lang['strrowdeletedbad'] =  'There was a problem when deleting the data';

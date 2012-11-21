@@ -42,8 +42,8 @@ class Application {
      */
     public function deletePage($id) {
         $success = false;
-        foreach ($this->pages as $page) 
-            if ($page->getPageID() == $id) 
+        foreach ($this->pages as $page)
+            if ($page->getPageID() == $id)
                 return $page->delete();
 
         return false;
@@ -149,7 +149,21 @@ class Application {
             $generator = new Generator($this);
             $this->theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
             $this->library = isset($_REQUEST['app_library']) ? $_REQUEST['app_library'] : 'pgsql';
-            $this->folder = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->getFolderName();
+
+            //Search for the temporary folder, the following code was made to be multiple platform
+            if (function_exists('sys_get_temp_dir')) {
+                $this->folder = sys_get_temp_dir();
+            } else {
+                if (!empty($_ENV['TMP'])) {
+                    $this->folder = $_ENV['TMP'];
+                } else if (!empty($_ENV['TMPDIR'])) {
+                    $this->folder = $_ENV['TMPDIR'];
+                } else if (!empty($_ENV['TEMP'])) {
+                    $this->folder = $_ENV['TEMP'];
+                }
+            }
+            $this->folder .= DIRECTORY_SEPARATOR . $this->getFolderName();
+
 
             Generator::recursive_copy("plugins/CrudGen/themes/" . $this->theme, $this->folder);
             $generator->writeCommonFile();
@@ -158,7 +172,23 @@ class Application {
                 $misc->printMsg("{$this->lang['strerrpagegen']} {$page->getFilename()}.");
 
             unlink($this->folder . DIRECTORY_SEPARATOR . 'index.php');
-        } 
+
+            if ($generator->createZipFile()) {
+                $zip_folder = $this->folder . '.zip';
+                $filename = $this->getFolderName() . '.zip';
+                if (file_exists($zip_folder)) {
+                    header('Content-type: application/zip');
+                    header("Content-Disposition: attachment; filename={$filename}");
+                    readfile($zip_folder);
+                    unlink($zip_folder);
+                } else {
+                    $misc->printMsg("{$this->lang['strerrpagegen']}");
+                }
+            }
+            else {
+                 $misc->printMsg("{$this->lang['strerrpagegen']}");
+            }
+        }
         return $pagesToGenerate;
     }
 
@@ -252,7 +282,7 @@ class Application {
         $filename = str_replace('/', '', $filename);
         $filename = str_replace(' ', '_', $filename);
         $filename = str_replace('\\', '', $filename);
-        
+
         return $filename;
     }
 
@@ -427,10 +457,10 @@ class Application {
                     . "<a href=\"{$page->getFilename()}\" class=\"menu-link\">"
                     . htmlspecialchars($page->page_title) . "</a></li>';";
         }
-        
+
         if (!empty($menu_code))
             $menu_code = "\t\techo '<ul class=\"main-menu\">';{$menu_code}\n\t\techo '</ul>';";
-        
+
         return $menu_code;
     }
 
@@ -473,7 +503,7 @@ class Application {
 
     /**
      * Returns application name from DB
-     * 
+     *
      * @param $database name of the database where are the applications stored
      */
     public static function getAppNameFromDB($app_id) {
@@ -568,8 +598,8 @@ class Application {
                 . "auth_method, auth_table,auth_user_col,auth_pass_col) "
                 . "VALUES ('%s','%s','%s','%s','%s','%s','%s',%d,'%s','%s','%s','%s'"
                 . ") RETURNING app_id", $this->name, $this->descr, $this->db_name,
-                    $this->db_schema, $this->db_user, $this->db_pass, $this->db_host, 
-                    $this->db_port, $this->auth_method, $this->auth_table, 
+                    $this->db_schema, $this->db_user, $this->db_pass, $this->db_host,
+                    $this->db_port, $this->auth_method, $this->auth_table,
                     $this->auth_user_col, $this->auth_pass_col);
 
         $app_id = $driver->selectField($sql, "app_id");
@@ -674,7 +704,7 @@ class Application {
         $driver = $misc->getDatabaseAccessor("phppgadmin");
         $sql = sprintf("SELECT p.page_filename "
             . "FROM crudgen.pages p, crudgen.application a "
-            . "WHERE a.app_id=%d AND p.page_filename='%s'", 
+            . "WHERE a.app_id=%d AND p.page_filename='%s'",
             $this->app_id, $page_name);
 
         $rs = $driver->selectField($sql, "page_filename");
@@ -688,7 +718,7 @@ class Application {
      */
     public function isUniqueFilename($page_id, $filename) {
         foreach ($this->pages as $page) {
-            if (($page->getFilename() == $filename) && 
+            if (($page->getFilename() == $filename) &&
                 ($page->getId() != $page_id))
                 return false;
         }

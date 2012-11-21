@@ -150,6 +150,7 @@
     $lang['strnocommonfile'] = 'Ocurri&#243; un problema cuando se creaba el archivo com&#250;n.';
     $lang['strloginerror'] = '&iexcl;Inicio de sesi&#243;n incorrecto! Chequea si el usuario y contrase&ntilde;a son los correctos.';
     $lang['strerrpagegen'] = 'Ocurri&#243; un error cuando se generaba ';
+    $lang['strgenerror'] = 'Ocurri&#243; un error cuando se generaba la aplicaci&#243;n.';
     $lang['strerrordbconn'] = 'No hay conexi&#243;n a la base de datos';
     $lang['strerrorquery'] = 'Ocurri&#243; un problema cuando se ejecutaba la consulta';
     $lang['strrowdeletedbad'] =  'Ocurri&#243; un problema cuando se eliminaban los datos';

@@ -80,7 +80,7 @@ class CrudGen extends Plugin {
     }
 
     /**
-     * Builds an internal link array to simply code
+     * Builds an internal link array to simply code¡¡¡¡
      */
     private function build_link($action, $extra_vars = array()) {
         global $misc;
@@ -1323,8 +1323,8 @@ class CrudGen extends Plugin {
             if ($fk_table != -1) {
 
                 echo "<select style=\"width:100%;\"name=\"fk_field[{$field->getName()}][]\">";
-                $first_entry = ($page->operation == "report") || ($page->operation == "delete") ? $this->lang['strfkvalue'] : $this->lang['strmaninp'];
-                echo "\n\t\t\t\t<option value=\"{$first_entry}\">{$first_entry}</option>\n";
+                $first_entry = $page->operation == "report" ? $this->lang['strfkvalue'] : $this->lang['strmaninp'];
+                echo "\n\t\t\t\t<option value=\"\">{$first_entry}</option>\n";
 
                 //Builds an array with table's column's name
                 $attrs = $data->getTableAttributes($fk_table);

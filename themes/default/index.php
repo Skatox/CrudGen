@@ -53,6 +53,6 @@
         <script type="text/javascript" src="js/jquery-1.8.0.min.js"></script>
         <script type="text/javascript" src="js/jquery-ui-1.9.1.custom.min.js"></script>
         <script type="text/javascript" src="js/jquery.validate.min.js"></script>
-        <script type="text/javascript" src="js/jscode.js"></script>
+        <script type="text/javascript" src="js/jscode.min.js"></script>
     </body>
 </html>

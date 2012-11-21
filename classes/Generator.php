@@ -89,7 +89,7 @@ class Generator extends GenHtml {
     }
 
     /**
-     * This function generates a Crate page
+     * This function generates a Create page
      * @param $page Page object wich represents the generating page
      * @return bool if this page was created
      */
@@ -138,7 +138,7 @@ class Generator extends GenHtml {
                         . "<option value=\\\"\\\">{$this->app->lang['strselectval']}</option>\";"
                         . "printFKOptions('{$this->app->getSchema()}','{$column->getRemoteTable()}','"
                         . self::getPK($this->app->getDBName(), $column->getRemoteTable()) 
-                        . "','{$column->getRemoteField()}'); "
+                        . "','{$column->getRemoteField()}', \$_POST['{$column->getName()}']); "
                         . "echo \"\n\t\t\t\t\t\t</select>";
                 } else {
                     $classes = $this->getValidationClasses($page->getTable(), $column->getName());
@@ -151,7 +151,12 @@ class Generator extends GenHtml {
                     . "\n\t\t\t\t</div>";
 
                 $column_names[] = $column->getName();
-                $values[] = "clearVars(\$_POST[\"{$column->getName()}\"])";
+
+                if( $this->app->library =="pgsql" ) 
+                    $values[] = "clearVars(\$_POST[\"{$column->getName()}\"])";
+                else
+                    $values[] = ":{$column->getName()}";
+
                 $sprintf[] = "%s";
                 $i++;
             }
@@ -160,42 +165,75 @@ class Generator extends GenHtml {
 
         //Generates code for functions
         $buttons_code = "\t\techo \"" . self::getCreateUpdateBtns($page) . "\";";
-
-        $sql = "\n\t\t\tsprintf(\"INSERT INTO {$this->app->getSchema()}.{$page->getTable()}"
-            . " (" . implode(",", $column_names) . ") "
-            . "\n\t\t\t\tVALUES (" . implode(",", $sprintf) . ")\",\n\t\t\t\t"
-            .  implode(",\n\t\t\t\t", $values) . ")";
-
         $insert_code = "\t\tglobal \$conn;"
-            . "\n\t\tif (!\$conn) {"
-            . "\n\t\t\t\$_SESSION['error'] = "
-            . "\"{$this->app->lang['strerrordbconn']}: \" . pg_last_error();"
-            . "\n\t\t\texit;"
-            . "\n\t\t}\n"
-            . $clear_vars
-            . "\n\n\t\ttry {"
-            . "\n\t\t\t\$rs = pg_query(\$conn,{$sql});\n"
+            . "\n\t\tif (!\$conn) {";
+
+        if($this->app->library == "pgsql"){
+            $sql = "\n\t\t\tsprintf(\"INSERT INTO {$this->app->getSchema()}.{$page->getTable()}"
+                . " (" . implode(",", $column_names) . ") "
+                . "\n\t\t\t\tVALUES (" . implode(",", $sprintf) . ")\",\n\t\t\t\t"
+                .  implode(",\n\t\t\t\t", $values) . ")";
+
+            $insert_code .= "\n\t\t\t\$_SESSION['error'] = "
+                . "\"{$this->app->lang['strerrordbconn']}: \" . pg_last_error();"
+                . "\n\t\t\texit;"
+                . "\n\t\t}\n"
+                . $clear_vars
+                . "\n\n\t\ttry {"
+                . "\n\t\t\t\$rs = pg_query(\$conn,{$sql});\n"
+                . "\n\t\t} catch (Exception \$e) {"
+                . "\n\t\t\t\$rs = NULL;"
+                . "\n\t\t}"
+                . "\n\t\tif (!\$rs) {"
+                . "\n\t\t\t\$_SESSION['error'] = "
+                . "\"{$this->app->lang['strinsertfail']}:\" . pg_last_error( \$conn );"
+                . "\n\t\t\treturn false;"
+                . "\n\t\t} else {"
+                . "\n\t\t\t\$_SESSION['msg'] = \"{$this->app->lang['strinsertsuccess']}\";";
+
+            foreach ($column_names as $column)
+                 $insert_code .= "\n\t\t\t\$_POST['{$column}'] = '';";
+
+            $insert_code .= "\n\t\t\tpg_free_result(\$rs);";
+        } else { //PDO
+            $sql = "\n\t\t\t\"INSERT INTO {$this->app->getSchema()}.{$page->getTable()}"
+                . " (" . implode(",", $column_names) . ") "
+                . "\n\t\t\t\tVALUES (" . implode(",\n\t\t\t\t", $values) . ")\"";
+
+            $insert_code .= "\n\t\t\t\$_SESSION['error'] = "
+                . "\"{$this->app->lang['strerrordbconn']}.\";"
+                . "\n\t\t\texit;"
+                . "\n\t\t}\n"
+                . $clear_vars
+                . "\n\n\t\ttry {"
+                . "\n\t\t\t\$query = \$conn->prepare({$sql});\n";
+
+            foreach ($column_names as $column)
+                 $insert_code .= "\n\t\t\t\$query->bindParam("
+                    . "':{$column}', \$_POST[\"{$column}\"]);";
+
+            $insert_code .= "\n\t\t\t\$rs = \$query->execute();"
             . "\n\t\t} catch (Exception \$e) {"
             . "\n\t\t\t\$rs = NULL;"
             . "\n\t\t}"
             . "\n\t\tif (!\$rs) {"
             . "\n\t\t\t\$_SESSION['error'] = "
-            . "\"{$this->app->lang['strinsertfail']}:\" . pg_last_error( \$conn );"
+            . "\"{$this->app->lang['strinsertfail']}.\";"
             . "\n\t\t\treturn false;"
             . "\n\t\t} else {"
             . "\n\t\t\t\$_SESSION['msg'] = \"{$this->app->lang['strinsertsuccess']}\";";
 
-        foreach ($column_names as $column)
-             $insert_code .= "\n\t\t\t\$_POST['{$column}'] = '';";
+            foreach ($column_names as $column)
+                 $insert_code .= "\n\t\t\t\$_POST['{$column}'] = '';";
+        }
 
-        $insert_code .= "\n\t\t\tpg_free_result(\$rs);"
-            . "\n\t\t\treturn true;"
+        $insert_code .= "\n\t\t\treturn true;"
             . "\n\t\t}";
-
+            
         $clear_code = "\t\treturn (\$val == '' || \$val == NULL) ? \"NULL\" : \"'{\$val}'\";";
         $form_action = "\n\t\techo \"{$page->getFilename()}\";";
 
-        $args = array("\$schema,\$table", "\$pk", "\$field");
+        $args = array("\$schema,\$table", "\$pk", "\$field", "\$selected_pk");
         $function_code .= $this->getFunction("insertRecord", "", $insert_code)
             . $this->getFunction("printFKOptions", $args, $this->printFkOptions())
             . $this->getFunction("clearVars", "\$val", $clear_code)
@@ -248,7 +286,6 @@ class Generator extends GenHtml {
         //variable to counts tables in the sql
         $tables = 0;
         $from = "{$this->app->getSchema()}.{$page->getTable()} a ";
-        $wheres = array();
         $joins = array();
         $selects = array("a.{$pk}");
 
@@ -290,11 +327,6 @@ class Generator extends GenHtml {
                     . "\n\t\t\t\t</thead>"
                     . "\n\t\t\t<tbody>\";";
 
-        //Builds sql sentence
-        $sql = "SELECT " . implode(",", $selects) 
-            . "\n\t\t\t\tFROM " . $from . implode(" ", $joins);
-        $where =  count($wheres) ? implode("AND ", $wheres) : "1=1\";";
-
         //Adds deletion request at the begining of the code
         $code .= "\n\n\t\t//Deletion process"
             . "\n\t\tif(isset(\$_REQUEST[\"operation\"])){"
@@ -312,47 +344,96 @@ class Generator extends GenHtml {
             . "\n\t\t\t}"
             . "\n\t\t}"
             . "\n\n\t\tglobal \$conn;"
-            . "\n\t\t\$extra_sql=\" WHERE " . $where
+            . "\n\t\t\$extra_sql=\" WHERE 1=1\";"
             . "\n\t\n\t\tif(isset(\$_POST[\"filter-term\"])&& isset(\$_POST['filter-column']))"
-            . "\n\t\t\tif(!empty(\$_POST[\"filter-term\"]) && !empty(\$_POST['filter-column']))"
-            . "\n\t\t\t\t\$extra_sql.= sprintf("
-            . "\"AND CAST(%s  AS VARCHAR) ILIKE '%s'\", \$_POST[\"filter-column\"],"
-            . " \"%{\$_POST[\"filter-term\"]}%\");"
-            . "\n\t\t\telse"
-            . "\n\t\t\t\t\$_POST[\"filter-term\"] = '';"
-            . "\n\n\t\tif(isset(\$_POST[\"column_order\"])){"
-            . "\n\t\t\t\$extra_sql .= sprintf(\" ORDER BY a.%s\",\$_POST[\"column_order\"]);"
-            . "\n\t\t\t\$extra_sql .= \$_POST[\"order\"]==\"ASC\" ? \" ASC\" : \" DESC\";"
-            . "\n\t\t}"
-            . "\n\n\t\t\$limit = isset(\$_POST[\"filter-limit\"]) ? "
-            . "\$_POST[\"filter-limit\"] : RESULTS_LIMIT;"
-            . "\n\t\t\$offset = isset(\$_POST[\"offset\"]) ? \$_POST[\"offset\"]"
-            . " : RESULTS_START;"
-            . "\n\n\t\tif (isset(\$_POST['filter-button']))"
-            . "\n\t\t\t\$offset = RESULTS_START;"
-            . "\n\n\t\t\$offset = \$limit * (\$offset -1);"
-            . "\n\t\t\$paginate_sql = sprintf(\" LIMIT %d OFFSET %d\", \$limit, \$offset);\n"
-            . "\n\t\tif (!\$conn) {\n\t\t\t"
-            . "\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']}: \".pg_last_error();"
-            . "\n\t\t\texit;"
-            . "\n\t\t}\n"
-            . "\n\t\t\$rs = pg_query(\$conn, \"{$sql}\".\$extra_sql);"
-            . "\n\n\t\tif (!\$rs) {"
-            . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
-            . "\n\t\t\texit;"
-            . "\n\t\t}"
-            . "\n\t\t\$rows = pg_num_rows(\$rs);"
-            . "\n\t\t\$rs = pg_query(\$conn,\"{$sql}\".\$extra_sql.\$paginate_sql);"
-            . "\n\n\t\tprintFilterBox(); //Filter results"
-            . $table_code;
+            . "\n\t\t\tif(!empty(\$_POST[\"filter-term\"]) && !empty(\$_POST['filter-column'])){";
+
+        $fetch_code = null;
+        $sql = "SELECT " . implode(",", $selects) 
+            . "\n\t\t\t\tFROM " . $from . implode(" ", $joins); //Builds sql sentence
+
+        if($this->app->library == "pgsql"){
+            $code .= "\n\t\t\t\t\$extra_sql.= sprintf("
+                . "\" AND CAST(%s  AS VARCHAR) ILIKE '%s'\", \$_POST[\"filter-column\"],"
+                . " \"%{\$_POST[\"filter-term\"]}%\");"
+                . "\n\t\t\t} else"
+                . "\n\t\t\t\t\$_POST[\"filter-term\"] = '';"
+                . "\n\n\t\tif(isset(\$_POST[\"column_order\"])){"
+                . "\n\t\t\t\$extra_sql .= sprintf(\" ORDER BY a.%s\",\$_POST[\"column_order\"]);"
+                . "\n\t\t\t\$extra_sql .= \$_POST[\"order\"]==\"ASC\" ? \" ASC\" : \" DESC\";"
+                . "\n\t\t}"
+                . "\n\n\t\t\$limit = isset(\$_POST[\"filter-limit\"]) ? "
+                . "\$_POST[\"filter-limit\"] : RESULTS_LIMIT;"
+                . "\n\t\t\$offset = isset(\$_POST[\"offset\"]) ? \$_POST[\"offset\"]"
+                . " : RESULTS_START;"
+                . "\n\n\t\tif (isset(\$_POST['filter-button']))"
+                . "\n\t\t\t\$offset = RESULTS_START;"
+                . "\n\n\t\t\$offset = \$limit * (\$offset -1);"
+                . "\n\t\t\$paginate_sql = sprintf(\" LIMIT %d OFFSET %d\", \$limit, \$offset);\n"
+                . "\n\t\tif (!\$conn) {\n\t\t\t"
+                . "\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']}: \".pg_last_error();"
+                . "\n\t\t\texit;"
+                . "\n\t\t}\n"
+                . "\n\t\t\$rs = pg_query(\$conn, \"{$sql}\".\$extra_sql);"
+                . "\n\n\t\tif (!\$rs) {"
+                . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
+                . "\n\t\t\texit;"
+                . "\n\t\t}"
+                . "\n\t\t\$rows = pg_num_rows(\$rs);"
+                . "\n\t\t\$rs = pg_query(\$conn,\"{$sql}\".\$extra_sql.\$paginate_sql);";
+                $fetch_code = "\$row = pg_fetch_array(\$rs)";
+        } else {
+            $sql_count = "SELECT COUNT(*) FROM " . $from . implode(" ", $joins);
+            $code .= "\n\t\t\t\t\$extra_sql.= sprintf(\" AND CAST(%s  AS VARCHAR) ILIKE :term\","
+                . " \$_POST['filter-column']);"
+                . "\n\t\t\t\t\$term = \$_POST[\"filter-term\"] . '%';"
+                . "\n\t\t\t} else"
+                . "\n\t\t\t\t\$term = NULL;"
+                . "\n\t\t\$sql_count = \"{$sql_count}\" . \$extra_sql;"
+                . "\n\n\t\tif(isset(\$_POST[\"column_order\"])){"
+                . "\n\t\t\t\$extra_sql .= sprintf(\" ORDER BY a.%s \", \$_POST[\"column_order\"]);"
+                . "\n\t\t\t\$extra_sql .= \$_POST[\"order\"]==\"ASC\" ? \" ASC\" : \" DESC\";"
+                . "\n\t\t}"
+                . "\n\n\t\t\$limit = isset(\$_POST[\"filter-limit\"]) ? "
+                . "\$_POST[\"filter-limit\"] : RESULTS_LIMIT;"
+                . "\n\t\t\$offset = isset(\$_POST[\"offset\"]) ? \$_POST[\"offset\"]"
+                . " : RESULTS_START;"
+                . "\n\n\t\tif (isset(\$_POST['filter-button']))"
+                . "\n\t\t\t\$offset = RESULTS_START;"
+                . "\n\n\t\t\$offset = \$limit * (\$offset -1);"
+                . "\n\t\t\$paginate_sql = \" LIMIT :limit OFFSET :offset\";\n"
+                . "\n\t\tif (!\$conn) {"
+                . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']}\";"
+                . "\n\t\t\texit;"
+                . "\n\t\t}\n"
+                . "\n\t\ttry {"
+                . "\n\t\t\t\$query = \$conn->prepare(\"{$sql}\" . \$extra_sql . \$paginate_sql);"
+                . "\n\t\t\t\$query_count = \$conn->prepare(\$sql_count);"
+                . "\n\n\t\t\tif(!empty(\$term)){"
+                . "\n\t\t\t\t\$query->bindParam(\":term\",\$term, PDO::PARAM_STR);"
+                . "\n\t\t\t\t\$query_count->bindParam(\":term\",\$term, PDO::PARAM_STR);"
+                . "\n\t\t\t}"
+                . "\n\t\t\t\$query->bindParam(\":limit\", \$limit, PDO::PARAM_INT);"
+                . "\n\t\t\t\$query->bindParam(\":offset\", \$offset, PDO::PARAM_INT);"
+                . "\n\t\t\t\$query->execute();"
+                . "\n\t\t\t\$query_count->execute();"
+                . "\n\t\t\t\$rows = \$query_count->fetchColumn();"
+                . "\n\t\t} catch(PDOException \$e){"
+                . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
+                . "\n\t\t\texit;"
+                . "\n\t\t}";
+                $fetch_code = "\$row = \$query->fetch()";
+        }
+        $code .= "\n\n\t\tprintFilterBox(); //Filter results" . $table_code;
 
         //Executes the sql and creates the table
         $num_fld++;
         $actions = $this->generateActionLinks($page,'{$row[0]}');
-        $code .= "\n\n\t\tif(!\$rows)"
+        $code   .= "\n\n\t\tif(!\$rows)"
             . "\n\t\t\techo \"<tr><td colspan=\\\"" . ($num_fld + 1) ."\\\">"
             . "{$this->app->lang['stremptyrows']}</td></tr>\";"
-            . "\n\n\t\twhile (\$row = pg_fetch_array(\$rs)){\n\t\t\techo \"\t<tr>\";"
+            . "\n\n\t\twhile ({$fetch_code}){"
+            . "\n\t\t\techo \"\t<tr>\";"
             . "\n\t\t\techo \"\t\t<td><input class=\\\"checkbox\\\" "
             . "type=\\\"checkbox\\\" name=\\\"selected[]\\\" value=\\\"{\$row[0]}\\\" />"
             . "</td>\";"
@@ -360,24 +441,21 @@ class Generator extends GenHtml {
             . "\n\t\t\t\techo \"<td>\".htmlspecialchars(\$row[\$i]).\"</td>\";"
             . "\n\t\t\techo \"<td class=\\\"actions\\\">{$actions}</td>\";"
             . "\n\t\t\techo \"</tr>\";\n\t\t}"
-            . "\n\n\t\tpg_free_result(\$rs);//Closes db connection"
             . "\n\t\techo \"</tbody></table>\";"
             . "\n\t\tprintRowsRadios();"
             . "\n\t\tprintPagination(\$rows,\$limit);";
 
-        $filter_code = $this->generateReportFilterBox($page);
-        $delete_code = $this->generateDeleteCode($page->getTable(), $pk);
+        $filter_code  = $this->generateReportFilterBox($page);
+        $delete_code  = $this->getDeleteCode($page->getTable(), $pk);
         $buttons_code = "\t\techo \"". $this->genReportBtns($page) . "\";";
-        $form_action = "\t\techo \"{$page->getFilename()}\";";
+        $form_action  = "\t\techo \"{$page->getFilename()}\";";
 
         //Creates the args array for the function
         $function_code = $this->getFunction("printFilterBox", '', $filter_code)
             . $this->getFunction("printActionButtons", '', $buttons_code)
             . $this->getFunction("printFormAction", '', $form_action)
-            . $this->getFunction("deleteRecords", array("\$ids"), $delete_code);
-
-        //Creates the code function
-        $function_code .= $this->getOperationCode(null, $code);
+            . $this->getFunction("deleteRecords", array("\$ids"), $delete_code)
+            . $this->getOperationCode(null, $code); //Creates the code function
 
         return $this->generatePageFile($page, $function_code);
     }
@@ -408,37 +486,31 @@ class Generator extends GenHtml {
             . "\n\t\t\t\$operation = 'none';"
             . "\n\t\t}"
             . "\n\n\t\tif(\$operation == \"update\"){"
-            . "\n\t\t\t\t\$success= updateRow(\$_SESSION[\"selected\"][\$index]);\n"
-            . "\n\t\t\t\tif(\$success) {"
-            . "\n\t\t\t\t\t\$_SESSION['msg'] = \"{$this->app->lang['strupdatesuccess']}\";"
-            . "\n\t\t\t\t\t\$index++;";
+            . "\n\t\t\t\$success= updateRow(\$_SESSION[\"selected\"][\$index]);\n"
+            . "\n\t\t\tif(\$success) {"
+            . "\n\t\t\t\t\$_SESSION['msg'] = \"{$this->app->lang['strupdatesuccess']}\";"
+            . "\n\t\t\t\t\$index++;";
 
         foreach($columns as $column) {
             if ($column->isOnPage()) {
-                $code .="\n\t\t\t\t\tunset(\$_POST[\"{$column->getName()}\"]);";   
+                $code .="\n\t\t\t\tunset(\$_POST[\"{$column->getName()}\"]);";   
             }
         }
 
-        $code .= "\n\t\t\t\t} else {"
-            . "\n\t\t\t\t\t\$operation = \"edit\";"
-            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strpageerredit']}\";"
-            . "\n\t\t\t\t}"
-            . "\n\t\t\t\tif(\$index == count(\$_SESSION[\"selected\"])){"
-            . "\n\t\t\t\t\t\$operation = 'none';"
-            . "\n\t\t\t\t\tunset(\$_SESSION[\"selected\"]);"
-            . "\n\t\t\t\t} else {"
-            . "\n\t\t\t\t\t\$operation = \"edit\";"
-            . "\n\t\t\t\t}"
+        $code .= "\n\t\t\t} else {"
+            . "\n\t\t\t\t\$operation = \"edit\";"
+            . "\n\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strpageerredit']}\";"
+            . "\n\t\t\t}"
+            . "\n\t\t\tif(\$index == count(\$_SESSION[\"selected\"])){"
+            . "\n\t\t\t\t\$operation = 'none';"
+            . "\n\t\t\t\tunset(\$_SESSION[\"selected\"]);"
+            . "\n\t\t\t} else {"
+            . "\n\t\t\t\t\$operation = \"edit\";"
+            . "\n\t\t\t}"
             . "\n\n\t\t}"
             . "\n\n\t\tif(\$operation == \"edit\"){"
-            . "\n\t\t\t\tglobal \$conn;\n"
-            . "\n\t\t\t\tif (!\$conn) {"
-            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']} :\" . pg_last_error();"
-            . "\n\t\t\t\t\texit;"
-            . "\n\t\t\t\t}"
-            . "\n\t\t\t\t\$cant = count(\$_SESSION[\"selected\"]);"
-            . "\n\t\t\t\t\$id = \$cant > 1 ? \$_SESSION[\"selected\"][\$index] : \$_SESSION[\"selected\"][0];";
-            
+            . "\n\t\t\tglobal \$conn;\n"
+            . "\n\t\t\tif (!\$conn) {";
 
         $tables = 0;
         $joins = array();
@@ -462,31 +534,58 @@ class Generator extends GenHtml {
         }
         $sql = "SELECT " . implode(", ", array_values($selects) ) . "\n\t\t\t\t\t"
             . "FROM {$this->app->getSchema()}.{$page->getTable()} a " . implode(" ", $joins) 
-            . " WHERE a." . self::getPK($this->app->getDBName(), $page->getTable()) . "= %s"; 
+            . " WHERE a." . self::getPK($this->app->getDBName(), $page->getTable());
 
-        $code .= "\n\t\t\t\t\$query = sprintf(\"{$sql}\", \$id);\n"
-            . "\n\t\t\t\t\$rs = pg_query(\$conn, \$query);\n"
-            . "\n\t\t\t\tif (!\$rs){"
-            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
-            . "\n\t\t\t\t\texit;"
-            . "\n\t\t\t\t}\n"
-            . "\n\t\t\t\t\$row = pg_fetch_array(\$rs);\n"
-            . "\n\t\t\t\tif(!\$row ) {"
-            . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strrecordnoexist']}\";"
-            . "\n\t\t\t\t\t\$operation = 'none';"
-            . "\n\t\t\t\t} else {";
+        if($this->app->library =="pgsql"){
+            $code .= "\n\t\t\t\t\t\$_SESSION['error'] = "
+                . "\"{$this->app->lang['strerrordbconn']}:\" . pg_last_error();"
+                . "\n\t\t\t\t\texit;"
+                . "\n\t\t\t\t}"
+                . "\n\t\t\t\t\$cant = count(\$_SESSION[\"selected\"]);"
+                . "\n\t\t\t\t\$id = \$cant > 1 ? "
+                . "\$_SESSION[\"selected\"][\$index] : \$_SESSION[\"selected\"][0];"
+                . "\n\t\t\t\t\$query = sprintf(\"{$sql}=%s\", \$id);\n"
+                . "\n\t\t\t\t\$rs = pg_query(\$conn, \$query);\n"
+                . "\n\t\t\t\tif (!\$rs){"
+                . "\n\t\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
+                . "\n\t\t\t\t\texit;"
+                . "\n\t\t\t\t}\n"
+                . "\n\t\t\t\t\$row = pg_fetch_array(\$rs);\n";
+        } else {
+            $code .= "\n\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']}.\";"
+                . "\n\t\t\t\texit;"
+                . "\n\t\t\t}"
+                . "\n\t\t\t\$cant = count(\$_SESSION[\"selected\"]);"
+                . "\n\t\t\t\$id = \$cant > 1 ? "
+                . "\$_SESSION[\"selected\"][\$index] : \$_SESSION[\"selected\"][0];"
+                . "\n\t\t\ttry {"
+                . "\n\t\t\t\t\$query = \$conn->prepare(\"{$sql}=:id\");"
+                . "\n\t\t\t\t\$query->bindParam(\":id\", \$id);"
+                . "\n\t\t\t\t\$rs = \$query->execute();"
+                . "\n\t\t\t} catch (Exception \$e) {"
+                . "\n\t\t\t\t\$rs = NULL;"
+                . "\n\t\t\t}"
+                . "\n\t\t\tif (!\$rs){"
+                . "\n\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
+                . "\n\t\t\t\texit;"
+                . "\n\t\t\t}\n"
+                . "\n\t\t\t\$row = \$query->fetch(PDO::FETCH_ASSOC);\n";
+        }
+        $code .= "\n\t\t\tif(!\$row ) {"
+            . "\n\t\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strrecordnoexist']}\";"
+            . "\n\t\t\t\t\$operation = 'none';"
+            . "\n\t\t\t} else {";
 
         foreach($columns as $column) {
             if ($column->isOnPage()) {
-                $code .="\n\t\t\t\t\t\$_POST[\"{$column->getName()}\"] = "   
+                $code .="\n\t\t\t\t\$_POST[\"{$column->getName()}\"] = "   
                 . "isset( \$_POST[\"{$column->getName()}\"] ) ? "   
                 . "\$_POST[\"{$column->getName()}\"] : \$row[\"{$column->getName()}\"] ;";   
             }
-        }
-        
-        $code .= "\n\t\t\t\t\techo \"". $this->hidden('crudgen_operation', 'update') . "\";"
-            . "\n\t\t\t\t\techo \"". $this->hidden('crudgen_index', "\". \$index . \"")
-            . "\n\t\t\t\t\t\t<div class=\\\"form-wrapper\\\">";
+        }        
+        $code .= "\n\t\t\t\techo \"". $this->hidden('crudgen_operation', 'update') . "\";"
+            . "\n\t\t\t\techo \"". $this->hidden('crudgen_index', "\". \$index . \"")
+            . "\n\t\t\t\t\t<div class=\\\"form-wrapper\\\">";
 
         //Prints the input box for each field
         $clear_vars = "";
@@ -497,8 +596,8 @@ class Generator extends GenHtml {
         foreach($columns as $column) {
             if ($column->isOnPage()) {
                 $input_id = "column-{$i}";
-                $clear_vars .="\n\t\t\tif(!isset(\$_POST[\"{$column->getName()}\"]))"
-                    . "\n\t\t\t\t\$_POST[\"{$column->getName()}\"] = '';\n";
+                $clear_vars .="\n\t\tif(!isset(\$_POST[\"{$column->getName()}\"]))"
+                    . "\n\t\t\t\$_POST[\"{$column->getName()}\"] = '';\n";
 
                 $code .= "\n\t\t\t\t\t\t<div class=\\\"row\\\">"
                     . "\n\t\t\t\t\t\t\t<div class=\\\"label-wrapper\\\">"
@@ -532,8 +631,8 @@ class Generator extends GenHtml {
             }
         }
         $code .=  "\n\t\t\t\t\t</div>\";"
-            . "\n\t\t\t\t}"
-            . "\n\n\t\t}"
+            . "\n\t\t\t}"
+            . "\n\t\t}"
             . "\n\n\t\tif(\$operation == \"none\"){"
             . "\n\t\t\techo \"<div class=\\\"form-wrapper\\\">"
             . "\n\t\t\t\t<p>{$this->app->lang['strwriteprimarykey']}</p>"
@@ -548,15 +647,18 @@ class Generator extends GenHtml {
             . "\n\t\t}";
 
         //Generates code for functions
-        $sql = "UPDATE {$this->app->getSchema()}.{$page->getTable()} "
-            . "SET \" . " . "implode(',',\$sql_set) . \""
+        $sql = "sprintf(\"UPDATE {$this->app->getSchema()}.{$page->getTable()} "
+            . "SET \" . " . "implode(',',\$sql_set) . \" "
             . "WHERE " . self::getPK($this->app->getDBName(), $page->getTable()) 
-            . " = '{\$id}'";
+            . " = '%s'\",\$id)";
 
         $update_code = "\t\tglobal \$conn;\n"
             . "\n\t\t\$columns = array(" . implode(',', $update_columns) . ");"
-            . "\n\t\t\$sql_set = array();"
-            . "\n\n\t\tforeach(\$columns as \$column){"
+            . "\n\t\t\$sql_set = array();";
+            
+
+        if($this->app->library == "pgsql"){
+            $update_code .= "\n\n\t\tforeach(\$columns as \$column){"
             . "\n\t\t\tif(\$_POST[\$column] == \"\")"
             . "\n\t\t\t\t\$sql_set[] = \"{\$column} = NULL\";"
             . "\n\t\t\telse"
@@ -567,7 +669,7 @@ class Generator extends GenHtml {
             . "\"{$this->app->lang['strerrordbconn']}: \" . pg_last_error();"
             . "\n\t\t\texit;"
             . "\n\t\t}\n"
-            . "\n\t\t\$rs = pg_query(\$conn,\"{$sql}\");\n"
+            . "\n\t\t\$rs = pg_query(\$conn,{$sql});\n"
             . "\n\t\tif (!\$rs) {"
             . "\n\t\t\t\$_SESSION['error'] = "
             . "\"{$this->app->lang['strupdatefail']}: \" . pg_last_error(\$conn);"
@@ -577,6 +679,26 @@ class Generator extends GenHtml {
             . "\n\t\t\tpg_free_result(\$rs);"
             . "\n\t\t\treturn true;"
             . "\n\t\t}";
+        } else {
+            $update_code .= "\n\t\t\$params = array();"
+            . "\n\n\t\tforeach(\$columns as \$column){"
+            . "\n\t\t\tif(\$_POST[\$column] == \"\")"
+            . "\n\t\t\t\t\$sql_set[] = \"{\$column} = NULL\";"
+            . "\n\t\t\telse{"
+            . "\n\t\t\t\t\$sql_set[] = \"{\$column} = ?\";"
+            . "\n\t\t\t\t\$params[] = \$_POST[\$column];"
+            . "\n\t\t\t}"
+            . "\n\t\t}\n"
+            . "\n\t\tif (!\$conn ) {"
+            . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']}.\";"
+            . "\n\t\t\texit;"
+            . "\n\t\t}\n"
+            . "\n\t\t\$query = \$conn->prepare({$sql});\n"
+            . "\n\n\t\t\$rs = \$query->execute(\$params);"
+            . "\n\t\tif (!\$rs)"
+            . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strupdatefail']}.\";"
+            . "\n\n\t\treturn \$rs;";
+        }
 
         $form_action_code = "\t\techo \"{$page->getFilename()}\";";
         $buttons_code = "\t\techo \"" . self::getCreateUpdateBtns($page) . "\";";
@@ -627,8 +749,8 @@ class Generator extends GenHtml {
                 . "user='\" . " . $user . " . \"' dbname='\" . DB_NAME . \"'\");";
         } else {
             $code .= "\$conn = new PDO(\"pgsql:dbname=\" . DB_NAME . \";"
-                . "host=\" . DB_HOST . \":\" . DB_PORT . \"\","
-                . "'\" . " . $user . " . \"','\" . " . $password . " . \"');";
+                . "host=\" . DB_HOST . \";port=\" . DB_PORT . \";"
+                . "user=\" . {$user} . \";password=\" . {$password});";
         }
 
         return $code;
@@ -699,17 +821,20 @@ class Generator extends GenHtml {
                 . "\n\t\t\t\treturn false;"
                 . "\n\t\t\t}";
         } else {
-            $code .= "if(isset(\$_POST['crudgen_user']) "
+            $code .= "\n\t\t\tif(isset(\$_POST['crudgen_user']) "
                 . "&& isset(\$_POST['crudgen_passwd']) ){"
                 . "\n\t\t\t\ttry{"
                 . "\n\t\t\t\t\t" . $this->getConnection(
                     "\$_POST['crudgen_user']", "\$_POST['crudgen_passwd']")
                 . "\n\t\t\t\t\t\$_SESSION['crudgen_user']=\$_POST['crudgen_user'];"
                 . "\n\t\t\t\t\t\$_SESSION['crudgen_passwd']=\$_POST['crudgen_passwd'];"
+                . "\n\t\t\t\t\treturn true;"
                 . "\n\t\t\t\t}catch(PDOException \$e){"
                 . "\n\t\t\t\t\t\$_SESSION['error']= \"{$this->app->lang['strloginerror']}\";"
                 . "\n\t\t\t\t\tinclude \"login.inc.php\";"
                 . "\n\t\t\t\t}"
+                . "\n\t\t\t} else {"
+                . "\n\t\t\t\tinclude \"login.inc.php\";"
                 . "\n\t\t\t}";
         }
         return $code . "\n\t\t}";
@@ -895,23 +1020,37 @@ class Generator extends GenHtml {
     * @param $pk primary key of the table
     * @return string html code of deletion
     */
-    private function generateDeleteCode($table, $pk){
+    private function getDeleteCode($table, $pk){
         $sql = "DELETE FROM {$this->app->getSchema()}.{$table} WHERE {$pk} IN (%s)";
+        $code = "\t\tglobal \$conn;"
+                . "\n\n\t\tif (!\$conn) {";
 
-        return "\t\tglobal \$conn;"
-            . "\n\n\t\tif (!\$conn) {"
-            . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']}: \""
-            . " . pg_last_error();"
-            . "\n\t\t\treturn false;"
-            . "\n\t\t}"
-            . "\n\t\t\$rs = pg_query(\$conn, sprintf(\"{$sql}\", implode(\",\" , \$ids ) ) );"
-            . "\n\n\t\tif (!\$rs){"
-            . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strrowdeletedbad']}: \""
-            . " . pg_last_error(\$conn);"
-            . "\n\t\t\treturn false;"
-            . "\n\t\t}"
-            . "\n\n\t\tpg_free_result(\$rs);"
-            . "\n\t\treturn (!\$rs) ? false : true;";
+        if($this->app->library == 'pgsql'){
+            $code .= "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']}: \""
+                . " . pg_last_error();"
+                . "\n\t\t\treturn false;"
+                . "\n\t\t}"
+                . "\n\t\t\$rs = pg_query(\$conn, sprintf(\"{$sql}\", implode(\",\" , \$ids ) ) );"
+                . "\n\n\t\tif (!\$rs){"
+                . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strrowdeletedbad']}: \""
+                . " . pg_last_error(\$conn);"
+                . "\n\t\t\treturn false;"
+                . "\n\t\t}"
+                . "\n\n\t\tpg_free_result(\$rs);";
+        } else {
+            $code .= "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrordbconn']}\";"
+                . "\n\t\t\treturn false;"
+                . "\n\t\t}"
+                . "\n\t\ttry {"
+                . "\n\t\t\t\$query= sprintf(\"{$sql}\", implode(\",\" , \$ids ) );"
+                . "\n\t\t\t\$count = \$conn->exec(\$query);"
+                . "\n\t\t\t\treturn \$count  > 0;"
+                . "\n\t\t} catch(PDOException \$e){"
+                . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strrowdeletedbad']}\";"
+                . "\n\t\t\treturn false;"
+                . "\n\t\t}";
+        }
+        return $code;
     }
 
    /**
@@ -1071,28 +1210,54 @@ class Generator extends GenHtml {
      * @return string options of the fk values
      */
     private function printFkOptions(){
-        return "\t\tglobal \$conn;\n"
-            . "\n\t\tif (!\$conn) { "
-            . "\n\t\t\t\$_SESSION['error'] = "
-            . "\"{$this->app->lang['strerrordbconn']}:\" . pg_last_error();"
-            . "\n\t\t\texit;"
-            . "\n\t\t}"
-            . "\n\n\t\ttry {"
-            . "\n\t\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s "
-            ." FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
-            . "\n\t\t} catch (Exception \$e) {"
-            . "\n\t\t\t\$rs = NULL;"
-            . "\n\t\t}"
-            . "\n\n\t\tif (!\$rs) {"
-            . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
-            . "\n\t\t\texit;"
-            . "\n\t\t}"
-            . "\n\t\twhile (\$row = pg_fetch_array(\$rs)){"
-            . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\"\";"
-            . "\n\t\t\tif(\$row[0] == \$selected_pk) echo \" selected=\\\"selected\\\"\";"
-            . "\n\t\t\techo \">{\$row[1]}</option>\";"
-            . "\n\t\t};"
-            . "\n\n\t\tpg_free_result(\$rs);";
+        $code = "\t\tglobal \$conn;\n";
+
+        if($this->app->library == "pgsql"){
+            $code .= "\n\t\tif (!\$conn) { "
+                . "\n\t\t\t\$_SESSION['error'] = "
+                . "\"{$this->app->lang['strerrordbconn']}:\" . pg_last_error();"
+                . "\n\t\t\texit;"
+                . "\n\t\t}"
+                . "\n\n\t\ttry {"
+                . "\n\t\t\t\$rs = pg_query(\$conn, sprintf(\"SELECT %s,%s "
+                ." FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
+                . "\n\t\t} catch (Exception \$e) {"
+                . "\n\t\t\t\$rs = NULL;"
+                . "\n\t\t}"
+                . "\n\n\t\tif (!\$rs) {"
+                . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
+                . "\n\t\t\texit;"
+                . "\n\t\t}"
+                . "\n\t\twhile (\$row = pg_fetch_array(\$rs)){"
+                . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\"\";"
+                . "\n\t\t\tif(\$row[0] == \$selected_pk) echo \" selected=\\\"selected\\\"\";"
+                . "\n\t\t\techo \">{\$row[1]}</option>\";"
+                . "\n\t\t};"
+                . "\n\n\t\tpg_free_result(\$rs);";
+        } else {
+            $code .= "\n\t\tif (!\$conn) { "
+                . "\n\t\t\t\$_SESSION['error'] = "
+                . "\"{$this->app->lang['strerrordbconn']}\";"
+                . "\n\t\t\texit;"
+                . "\n\t\t}"
+                . "\n\n\t\ttry {"
+                . "\n\t\t\t\$query = \$conn->prepare(sprintf(\"SELECT %s,%s "
+                ." FROM %s.%s\", \$pk, \$field, \$schema, \$table));"
+                . "\n\t\t\t\$rs = \$query->execute();"
+                . "\n\t\t} catch (Exception \$e) {"
+                . "\n\t\t\t\$rs = NULL;"
+                . "\n\t\t}"
+                . "\n\n\t\tif (!\$rs) {"
+                . "\n\t\t\t\$_SESSION['error'] = \"{$this->app->lang['strerrorquery']}\";"
+                . "\n\t\t\texit;"
+                . "\n\t\t}"
+                . "\n\t\twhile (\$row = \$query->fetch()){"
+                . "\n\t\t\techo \"<option value=\\\"{\$row[0]}\\\"\";"
+                . "\n\t\t\tif(\$row[0] == \$selected_pk) echo \" selected=\\\"selected\\\"\";"
+                . "\n\t\t\techo \">{\$row[1]}</option>\";"
+                . "\n\t\t};";
+        }
+        return $code;
     }
 
     /**
@@ -1185,7 +1350,10 @@ class Generator extends GenHtml {
         closedir($dir);
     }
 
-    public function createZipFile($source, $destination) {
+    public function createZipFile() {
+        $source = $this->app->folder;
+        $destination = $this->app->folder . ".zip";
+
         if (extension_loaded('zip') === true) {
             if (file_exists($source) === true) {
                 $zip = new ZipArchive();
@@ -1195,7 +1363,8 @@ class Generator extends GenHtml {
 
                     if (is_dir($source) === true) {
                         $files = new RecursiveIteratorIterator(
-                            new RecursiveDirectoryIterator($source),
+                                new RecursiveDirectoryIterator($source, 
+                                RecursiveDirectoryIterator::SKIP_DOTS),
                             RecursiveIteratorIterator::SELF_FIRST);
 
                         foreach ($files as $file) {
