@@ -1,10 +1,10 @@
 <?php
 
-require_once('classes/Plugin.php');
-include_once('plugins/CrudGen/classes/Application.php');
-include_once('plugins/CrudGen/classes/Columns.php');
-include_once('plugins/CrudGen/classes/Page.php');
-include_once('plugins/CrudGen/classes/Generator.php');
+require_once('./classes/Plugin.php');
+require_once('./plugins/CrudGen/classes/Application.php');
+require_once('./plugins/CrudGen/classes/Columns.php');
+require_once('./plugins/CrudGen/classes/Page.php');
+require_once('./plugins/CrudGen/classes/Generator.php');
 
 class CrudGen extends Plugin {
 
@@ -22,193 +22,6 @@ class CrudGen extends Plugin {
     }
 
     /**
-     * Prints options for a html combo-box and receives a value to select by default
-     * @param $array an array with values for the combo box
-     * @param $sel_value value of selected index
-     * @return string with html code for options
-     */
-    private function printSelOptions($array, $sel_value) {
-        $html_code = "";
-        foreach ($array as $value) {
-            $html_code = $html_code . "\n\t\t\t\t<option";
-            if ($value == $sel_value)
-                $html_code = $html_code . " selected=\"selected\"";
-            $html_code = $html_code . ">{$value}</option>\n";
-        }
-        return $html_code;
-    }
-
-    /*
-     * Function to check in DB if appgen's sql script was run,
-     * so its  schema must be created
-     */
-
-    private function checkAppDB() {
-        global $data, $misc;
-
-        // Check to see if the ppa database exists
-        $rs = $data->getDatabase("phppgadmin");
-
-        if ($rs->recordCount() != 1)
-            return false;
-        else {
-            // Create a new database access object.
-            $driver = $misc->getDatabaseAccessor("phppgadmin");
-            $schemas = $driver->getSchemas();
-
-            // Reports database should have been created in public schema
-            if (count($schemas) == 0)
-                return false;
-
-            //Checks for appgen in the schemas array
-            foreach ($schemas as $i)
-                if ($i["nspname"] == 'crudgen')
-                    return true;
-        }
-
-
-        return false;
-    }
-
-    /**
-     * Prints HTML code to include plugin's js file
-     *
-     * @return string HTML code of the included javascript
-     */
-    private function include_js() {
-        return "<script type=\"text/javascript\" src=\"plugins/{$this->name}/js/crudgen.js\"></script>";
-    }
-
-    /**
-     * Builds an internal link array to simply code¡¡¡¡
-     */
-    private function build_link($action, $extra_vars = array()) {
-        global $misc;
-
-        $link = "plugin.php?plugin={$this->name}&amp;action={$action}"
-                . "&amp;{$misc->href}&amp;";
-
-        if (count($extra_vars))
-            foreach ($extra_vars as $key => $val)
-                $link .= "{$key}={$val}&amp;";
-
-        return $link;
-    }
-
-    /**
-     * Builds an external link array to simply code
-     */
-    private function build_nav_link($url, $action, $content, $extra_vars = array()) {
-        $content = html_entity_decode($content); //to support spanish accents
-        $urlvars = array(
-            'action' => $action,
-            'server' => field('server'),
-            'subject' => field('subject'),
-            'database' => field('database'),
-            'schema' => field('schema'),
-        );
-
-        return array(
-                'attr' => array('href' => array('
-                    url' => $url, 
-                    'urlvars' => array_merge($urlvars, $extra_vars))
-                ),
-                'content' => $content
-        );
-    }
-
-    /**
-     * Builds a plugin link array to simply code
-     */
-    private function build_plugin_link($action, $content) {
-        return array(
-            'attr' => array('href' => array(
-                    'url' => 'plugin.php',
-                    'urlvars' => array(
-                        'plugin' => $this->name,
-                        'action' => $action,
-                        'server' => field('server'),
-                        'subject' => field('subject'),
-                        'database' => field('database'),
-                        'schema' => field('schema'),
-                    )
-            )),
-            'content' => $content
-        );
-    }
-
-    /**
-     * Frees all SESSION variables created by the wizard
-     */
-    private function cleanWizardVars() {
-        unset($_SESSION['crudgen_apptables']);
-        unset($_SESSION['crudgen_report']);
-        unset($_SESSION['crudgen_create']);
-        unset($_SESSION['crudgen_update']);
-        unset($_SESSION['crudgen_delete']);
-    }
-
-    /**
-     * Prints a message when there are no tables and offer the user to create them
-     */
-    private function print_no_tables() {
-        global $misc, $lang;
-
-        $misc->printMsg($lang['strnotables']);
-        echo '<p>' . $this->lang['strerrnotbl'] . '</p>';
-
-        $navlinks = array(
-            $this->build_nav_link('tables.php', 'create', $lang['strcreatetable']),
-            $this->build_nav_link('tables.php', 'createlike', $lang['strcreatetablelike']),
-        );
-
-        $misc->printNavLinks($navlinks, 'create_app');
-    }
-
-    /**
-     * Prints a table cell with a checkbox for selecting an operation
-     *
-     * @param $operation the operation for this cell
-     * @param $rowClass row's class name
-     * @param $table_name name of the table where the field is
-     * @param $field name of the column where the operation will be applied to
-     * @param $selected variable to see if the checkbox is selected or not
-     */
-    private function printOperationTableCell($operation, $rowClass, $table_name, $field) {
-
-        echo "\n\t\t\t\t\t<td class=\"{$rowClass}\" style=\"text-align: center;\">";
-        echo "\n\t\t\t\t\t\t<input type=\"checkbox\" name=\"{$operation}[{$table_name}][]\" value=\"{$field}\"";
-        if (isset($_SESSION[$operation]))
-            if (isset($_SESSION[$operation][$table_name])) {
-                if (count($_SESSION[$operation][$table_name]) > 0) {
-                    foreach ($_SESSION[$operation][$table_name] as $operation) {
-                        if ($operation == $field)
-                            echo " checked";
-                    }
-                }
-            }
-        echo "/></td>";
-    }
-
-    /**
-     * Print comboxes depending on how many fields works with this page
-     * @param $page page to print its fields
-     * @param $selected_field index of selected field
-     */
-    private function printOptionsField(Page $page, $selected_field) {
-        $fields_count = count($page->fields);
-
-        for ($i = 1; $i <= $fields_count; $i+= 1) {
-            echo "\n\t\t\t\t<option value=\"{$i}\"";
-           
-            if ($selected_field == $i)
-                echo " selected=\"selected\"";
-           
-            echo">{$i}</option>";
-        }
-    }
-
-    /**
      * This method returns the functions that will hook in the phpPgAdmin core.
      *
      * @return $hooks
@@ -218,7 +31,7 @@ class CrudGen extends Plugin {
             'tabs' => array('add_plugin_tabs'),
             'trail' => array('add_plugin_trail'),
         );
-        
+
         return $hooks;
     }
 
@@ -243,7 +56,7 @@ class CrudGen extends Plugin {
             'generate_app',
             'tree'
         );
-        
+
         return $actions;
     }
 
@@ -267,7 +80,7 @@ class CrudGen extends Plugin {
                         'action' => 'show_apps',
                         'plugin' => $this->name),
                     'hide' => false,
-                    'icon' => array('plugin' => $this->name, 'image' => 'CrudGen')
+                    'icon' => $this->icon( 'CrudGen')
                 );
                 break;
         }
@@ -298,8 +111,8 @@ class CrudGen extends Plugin {
             $trail['show_app'] = array(
                 'title' => 'View application\'s information',
                 'text' => $name,
-                'url' => $misc->printActionUrl($url, $_REQUEST, null, false),
-                'icon' => array('plugin' => $this->name, 'image' => 'CrudGen')
+                'url'   => $misc->getActionUrl($url, $_REQUEST, null, false),
+                'icon' => $this->icon( 'CrudGen')
             );
 
             //Changes schema's link
@@ -311,7 +124,7 @@ class CrudGen extends Plugin {
                     'action' => 'show_apps',
                 )
             );
-            $trail['schema']['url'] = $misc->printActionUrl($schema_url, $_REQUEST, null, false);
+            $trail['schema']['url'] = $misc->getActionUrl($schema_url, $_REQUEST, null, false);
         }
     }
 
@@ -321,6 +134,7 @@ class CrudGen extends Plugin {
     function show_app($msg = '') {
         global $lang, $misc;
 
+        $app_id = isset($_REQUEST['app_id']) ? $_REQUEST['app_id'] : 0;
         $misc->printHeader($lang['strdatabase']);
         $misc->printBody();
         $misc->printTrail('schema');
@@ -353,27 +167,25 @@ class CrudGen extends Plugin {
                 'title' => "Actions",
             ),
         );
+
         $actions = array(
             'list_pages' => array(
-                'title' => $this->lang['strmanagepage'],
-                'url' => $this->build_link('list_pages'),
-                'vars' => array('app_id' => 'app_id'),
+                'content' => $this->lang['strmanagepage'],
+                'attr'=> $this->build_link('list_pages', array ( 'app_id' => $app_id))
             ),
             'edit' => array(
-                'title' => $lang['stredit'],
-                'url' => $this->build_link('edit_app'),
-                'vars' => array('app_id' => 'app_id'),
+                'content' => $lang['stredit'],
+                'attr'=> $this->build_link('edit_app', array ( 'app_id' => $app_id ))
             ),
             'delete' => array(
-                'title' => $lang['strdelete'],
-                'url' => $this->build_link('delete_app'),
-                'vars' => array('app_id' => 'app_id'),
+                'content' => $lang['strdelete'],
+                'attr'=> $this->build_link('delete_app', array ( 'app_id' => $app_id )),
             ),
         );
 
-        $rs = Application::getApplication($_REQUEST['app_id']);
+        $rs = Application::getApplication($app_id);
         $misc->printTable($rs, $columns, $actions, null, $this->lang['strnoapps']);
-        $extra_vars = array('app_id' => $_REQUEST['app_id'], 'plugin' => $this->name);
+        $extra_vars = array('app_id' => $app_id, 'plugin' => $this->name);
 
         $navlinks = array(
             $this->build_nav_link('plugin.php', 'app_wizard', $this->lang['straddpages'], $extra_vars),
@@ -394,21 +206,21 @@ class CrudGen extends Plugin {
         global $lang, $misc;
 
         unset($_REQUEST['app_id']);
+        unset($_SESSION["appid"]);
 
         $misc->printHeader($lang['strdatabase']);
         $misc->printBody();
         $misc->printTrail('schema');
         $misc->printTabs('schema', 'crudgen');
 
-
-        unset($_SESSION["appid"]);
-
         $columns = array(
             'name' => array(
                 'title' => $lang['strname'],
                 'field' => field('app_name'),
-                'url' => $this->build_link('show_app'),
-                'vars' => array('app_id' => 'app_id'),
+                'url'   => "plugin.php?plugin={$this->name}&amp;action=show_app&amp;{$misc->href}&amp;",
+                'vars'  => array(
+                    'app_id' => 'app_id'
+                ),
             ),
             'descr' => array(
                 'title' => $this->lang['strdescr'],
@@ -426,37 +238,35 @@ class CrudGen extends Plugin {
                 'title' => "Actions",
             ),
         );
+
+        $urlvars = $misc->getRequestVars();
+
         $actions = array(
             'multiactions' => array(
                 'keycols' => array('app_id' => 'app_id'),
-                'url' => $this->build_link('show_apps'),
+                'url'   => "plugin.php?plugin={$this->name}&amp;action=show_apps&amp;{$misc->href}&amp;",
                 'default' => 'delete'
             ),
-            'wizard' => array(
-                'title' => $this->lang['straddpages'],
-                'url' => $this->build_link('app_wizard'),
-                'vars' => array('app_id' => 'app_id'),
+           'wizard' => array(
+               'content'=>$this->lang['straddpages'],
+               'attr'=> $this->build_link('app_wizard', array ( 'app_id' => field('app_id')))
             ),
             'list' => array(
-                'title' => $this->lang['strmanagepage'],
-                'url' => $this->build_link('list_pages'),
-                'vars' => array('app_id' => 'app_id'),
+                'content'=>$this->lang['strmanagepage'],
+                'attr'=> $this->build_link('list_pages', array ( 'app_id' => field('app_id')))
             ),
             'edit' => array(
-                'title' => $lang['stredit'],
-                'url' => $this->build_link('edit_app'),
-                'vars' => array('app_id' => 'app_id'),
+                'content'=>$lang['stredit'],
+                'attr'=> $this->build_link('edit_app', array ( 'app_id' => field('app_id') ))
             ),
             'delete' => array(
-                'title' => $lang['strdelete'],
-                'url' => $this->build_link('delete_app'),
-                'vars' => array('app_id' => 'app_id'),
+                'content' => $lang['strdelete'],
+                'attr'=> $this->build_link('delete_app', array ( 'app_id' => field('app_id') )),
                 'multiaction' => 'delete_app'
             ),
             'generate' => array(
-                'title' => $this->lang['strgenerate'],
-                'url' => $this->build_link('generate_app'),
-                'vars' => array('app_id' => 'app_id'),
+                'content'=>$this->lang['strgenerate'],
+                'attr'=> $this->build_link('generate_app', array ( 'app_id' => field('app_id') ))
             ),
         );
 
@@ -505,30 +315,18 @@ class CrudGen extends Plugin {
             $columns = array();
             $server_info = $misc->getServerInfo();
 
-            if (!isset($_REQUEST['name']))
-                $_REQUEST['name'] = '';
-            if (!isset($_REQUEST['descr']))
-                $_REQUEST['descr'] = '';
-            if (!isset($_REQUEST['theme']))
-                $_REQUEST['theme'] = 'default';
-            if (!isset($_REQUEST['db_host']))
-                $_REQUEST['db_host'] = '127.0.0.1';
-            if (!isset($_REQUEST['db_name']))
-                $_REQUEST['db_name'] = '';
-            if (!isset($_REQUEST['db_port']))
-                $_REQUEST['db_port'] = '5432';
-            if (!isset($_REQUEST['db_user']))
-                $_REQUEST['db_user'] = $server_info["username"];
-            if (!isset($_REQUEST['db_pass']))
-                $_REQUEST['db_pass'] = '';
-            if (!isset($_REQUEST['auth_method']))
-                $_REQUEST['auth_method'] = 'none';
-            if (!isset($_REQUEST['auth_table']))
-                $_REQUEST['auth_table'] = $tables[0];
-            if (!isset($_REQUEST['auth_user_col']))
-                $_REQUEST['auth_user_col'] = '';
-            if (!isset($_REQUEST['auth_pass_col']))
-                $_REQUEST['auth_pass_col'] = '';
+            if (!isset($_REQUEST['name'])) $_REQUEST['name'] = '';
+            if (!isset($_REQUEST['descr'])) $_REQUEST['descr'] = '';
+            if (!isset($_REQUEST['theme'])) $_REQUEST['theme'] = 'default';
+            if (!isset($_REQUEST['db_host'])) $_REQUEST['db_host'] = '127.0.0.1';
+            if (!isset($_REQUEST['db_name'])) $_REQUEST['db_name'] = '';
+            if (!isset($_REQUEST['db_port'])) $_REQUEST['db_port'] = '5432'; 
+            if (!isset($_REQUEST['db_user'])) $_REQUEST['db_user'] = $server_info["username"];
+            if (!isset($_REQUEST['db_pass'])) $_REQUEST['db_pass'] = '';
+            if (!isset($_REQUEST['auth_method'])) $_REQUEST['auth_method'] = 'none';
+            if (!isset($_REQUEST['auth_table'])) $_REQUEST['auth_table'] = $tables[0];
+            if (!isset($_REQUEST['auth_user_col'])) $_REQUEST['auth_user_col'] = '';
+            if (!isset($_REQUEST['auth_pass_col'])) $_REQUEST['auth_pass_col'] = '';
 
             //Loads columns
             $coltmp = $data->getTableAttributes($_REQUEST["auth_table"]);
@@ -657,6 +455,7 @@ class CrudGen extends Plugin {
      * Check application's input data and stores it on the DB
      */
     function save_app() {
+        global $_reload_browser;
 
         if (!empty($_REQUEST['cancel']))
             return $this->show_apps();
@@ -706,6 +505,7 @@ class CrudGen extends Plugin {
 
         if ($app->save()) {
             $msg = (empty($_REQUEST['app_id'])) ? $this->lang['strappsaved'] : $this->lang['strappedited'];
+            $_reload_browser = true;
         }
         else
             $this->lang['strappnotsaved'];
@@ -718,7 +518,7 @@ class CrudGen extends Plugin {
      * @param $confirm bool for asking confirmation of deletion process
      */
     function delete_app() {
-        global $lang, $misc;
+        global $lang, $misc, $_reload_browser;
 
         if (!empty($_REQUEST['cancel']))
             return $this->show_apps();
@@ -768,11 +568,14 @@ class CrudGen extends Plugin {
                         break;
                     }
                 }
-                if ($flag == 0)
+                if ($flag == 0){
                     $msg = $this->lang['strdelapps'];
-            }
-            else
+                    $_reload_browser = true;
+                }
+            } else {
                 $msg = (Application::delete($_REQUEST["app_id"])) ? $this->lang['strerrdelapp'] : $this->lang['strdelapp'];
+                $_reload_browser = true;
+            }
 
             $this->show_apps($msg);
         }
@@ -1522,7 +1325,7 @@ class CrudGen extends Plugin {
         $download_files = isset($_REQUEST['download']);
         $app_theme = isset($_REQUEST['app_theme']) ? $_REQUEST['app_theme'] : 'default';
         $app_id = $_REQUEST['app_id'];
-        
+
         $app = new Application();
         $app->load($app_id);
 
@@ -1585,17 +1388,17 @@ class CrudGen extends Plugin {
         $reqvars = $misc->getRequestVars('crudgen');
 
         $url = url(
-                'plugin.php', $reqvars, array(
-            'plugin' => $this->name,
-            'action' => 'show_app',
-            'app_id' => field('app_id')
-                )
+            'plugin.php', $reqvars, array(
+                'plugin' => $this->name,
+                'action' => 'show_app',
+                'app_id' => field('app_id')
+            )
         );
 
         $attrs = array(
             'text' => field('app_name'),
             'hide' => false,
-            'icon' => array('plugin' => $this->name, 'image' => 'CrudGen'),
+            'icon' => $this->icon( 'CrudGen'),
             'iconAction' => $url,
             'toolTip' => field('relcomment'),
             'action' => $url,
@@ -1603,6 +1406,196 @@ class CrudGen extends Plugin {
 
         $misc->printTreeXML($applications, $attrs);
         exit;
+    }
+
+        /**
+     * Prints options for a html combo-box and receives a value to select by default
+     * @param $array an array with values for the combo box
+     * @param $sel_value value of selected index
+     * @return string with html code for options
+     */
+    private function printSelOptions($array, $sel_value) {
+        $html_code = "";
+        foreach ($array as $value) {
+            $html_code = $html_code . "\n\t\t\t\t<option";
+            if ($value == $sel_value)
+                $html_code = $html_code . " selected=\"selected\"";
+            $html_code = $html_code . ">{$value}</option>\n";
+        }
+        return $html_code;
+    }
+
+    /*
+     * Function to check in DB if appgen's sql script was run,
+     * so its  schema must be created
+     */
+
+    private function checkAppDB() {
+        global $data, $misc;
+
+        // Check to see if the ppa database exists
+        $rs = $data->getDatabase("phppgadmin");
+
+        if ($rs->recordCount() != 1)
+            return false;
+        else {
+            // Create a new database access object.
+            $driver = $misc->getDatabaseAccessor("phppgadmin");
+            $schemas = $driver->getSchemas();
+
+            // Reports database should have been created in public schema
+            if (count($schemas) == 0)
+                return false;
+
+            //Checks for appgen in the schemas array
+            foreach ($schemas as $i)
+                if ($i["nspname"] == 'crudgen')
+                    return true;
+        }
+
+
+        return false;
+    }
+
+    /**
+     * Prints HTML code to include plugin's js file
+     *
+     * @return string HTML code of the included javascript
+     */
+    private function include_js() {
+        return "<script type=\"text/javascript\" src=\"plugins/{$this->name}/js/crudgen.js\"></script>";
+    }
+
+    /**
+     * Builds an internal link array to simply code¡¡¡¡
+     */
+    private function build_link($action, $extra_vars = array()) {
+        global $misc;
+
+        $urlvars = $misc->getRequestVars();
+
+        return array (
+                    'href'=>array(
+                        'url' =>'plugin.php',
+                        'urlvars' => array_merge($urlvars, array(
+                            'plugin' => $this->name,
+                            'action' => $action,
+                        ), $extra_vars ),
+                    )
+                );
+    }
+
+    /**
+     * Builds an external link array to simply code
+     */
+    private function build_nav_link($url, $action, $content, $extra_vars = array()) {
+        $content = html_entity_decode($content); //to support spanish accents
+        $urlvars = array(
+            'action' => $action,
+            'server' => field('server'),
+            'subject' => field('subject'),
+            'database' => field('database'),
+            'schema' => field('schema'),
+        );
+
+        return array(
+                'attr' => array('href' => array('
+                    url' => $url,
+                    'urlvars' => array_merge($urlvars, $extra_vars))
+                ),
+                'content' => $content
+        );
+    }
+
+    /**
+     * Builds a plugin link array to simply code
+     */
+    private function build_plugin_link($action, $content) {
+        return array(
+            'attr' => array('href' => array(
+                    'url' => 'plugin.php',
+                    'urlvars' => array(
+                        'plugin' => $this->name,
+                        'action' => $action,
+                        'server' => field('server'),
+                        'subject' => field('subject'),
+                        'database' => field('database'),
+                        'schema' => field('schema'),
+                    )
+            )),
+            'content' => $content
+        );
+    }
+
+    /**
+     * Frees all SESSION variables created by the wizard
+     */
+    private function cleanWizardVars() {
+        unset($_SESSION['crudgen_apptables']);
+        unset($_SESSION['crudgen_report']);
+        unset($_SESSION['crudgen_create']);
+        unset($_SESSION['crudgen_update']);
+        unset($_SESSION['crudgen_delete']);
+    }
+
+    /**
+     * Prints a message when there are no tables and offer the user to create them
+     */
+    private function print_no_tables() {
+        global $misc, $lang;
+
+        $misc->printMsg($lang['strnotables']);
+        echo '<p>' . $this->lang['strerrnotbl'] . '</p>';
+
+        $navlinks = array(
+            $this->build_nav_link('tables.php', 'create', $lang['strcreatetable']),
+            $this->build_nav_link('tables.php', 'createlike', $lang['strcreatetablelike']),
+        );
+
+        $misc->printNavLinks($navlinks, 'create_app');
+    }
+
+    /**
+     * Prints a table cell with a checkbox for selecting an operation
+     *
+     * @param $operation the operation for this cell
+     * @param $rowClass row's class name
+     * @param $table_name name of the table where the field is
+     * @param $field name of the column where the operation will be applied to
+     * @param $selected variable to see if the checkbox is selected or not
+     */
+    private function printOperationTableCell($operation, $rowClass, $table_name, $field) {
+
+        echo "\n\t\t\t\t\t<td class=\"{$rowClass}\" style=\"text-align: center;\">";
+        echo "\n\t\t\t\t\t\t<input type=\"checkbox\" name=\"{$operation}[{$table_name}][]\" value=\"{$field}\"";
+        if (isset($_SESSION[$operation]))
+            if (isset($_SESSION[$operation][$table_name])) {
+                if (count($_SESSION[$operation][$table_name]) > 0) {
+                    foreach ($_SESSION[$operation][$table_name] as $operation) {
+                        if ($operation == $field)
+                            echo " checked";
+                    }
+                }
+            }
+        echo "/></td>";
+    }
+
+    /**
+     * Print comboxes depending on how many fields works with this page
+     * @param $page page to print its fields
+     * @param $selected_field index of selected field
+     */
+    private function printOptionsField(Page $page, $selected_field) {
+        $fields_count = count($page->fields);
+
+        for ($i = 1; $i <= $fields_count; $i+= 1) {
+            echo "\n\t\t\t\t<option value=\"{$i}\"";
+
+            if ($selected_field == $i)
+                echo " selected=\"selected\"";
+
+            echo">{$i}</option>";
+        }
     }
 }
 ?>

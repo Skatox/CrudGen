@@ -1,5 +1,5 @@
 <?php
-require_once('GenHtml.php');
+require_once('./plugins/CrudGen/classes/GenHtml.php');
 
 class Generator extends GenHtml {
 
