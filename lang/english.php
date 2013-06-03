@@ -132,11 +132,12 @@
     $plugin_lang['strnouniquename'] = 'Another application has the same name, you must use a new one.';
     $plugin_lang['strerrorappsavedb'] = 'There was a problem when saving the application into the database.';
     $plugin_lang['strnopages'] = 'There are no pages for this application.';
-    $plugin_lang['strnopagesgenerate'] = 'This application has no pages ready to be generated. Please add their information first.';
+    $plugin_lang['strnopagesgenerate'] = 'This application doesn\'t have any pages to be generated. Please add their required information first.';
     $plugin_lang['strnopagetitle'] = 'You must give a page title.';
     $plugin_lang['strnopagefilename'] = 'You must write the name of the file.';
     $plugin_lang['strerrnoextension'] = 'You must write the php extension in to the filename.';
     $plugin_lang['strnodisplayname'] = 'Missing display name.';
+    $plugin_lang['strnodisplaycolumns'] = 'You must have at least one column to show';
     $plugin_lang['strpageerrsavedb'] = 'There was a problem when saving the page into the database.';
     $plugin_lang['strnouniquefilename'] = 'There is another page in the application with the same filename.';
     $plugin_lang['strerrfielddb'] = 'There was a problem when saving fields into the database';

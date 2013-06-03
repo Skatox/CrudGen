@@ -143,6 +143,7 @@
     $plugin_lang['strselpagetodelete'] = 'Select pages to be deleted';
     $plugin_lang['strselapptodelete'] = 'Select applications to be deleted';
     $plugin_lang['strerrnoappid'] = 'Missing application\'s ID';
+    $plugin_lang['strnodisplaycolumns'] = 'You must have at least one column to show';
     $plugin_lang['strnocommonfile'] = 'There was a problem when creating the common file.';
     $plugin_lang['strloginerror'] = 'Login failed! Check if username and password are correct.';
     $plugin_lang['strerrpagegen'] = 'There was an error when generating ';

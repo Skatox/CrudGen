@@ -141,6 +141,7 @@
     $plugin_lang['strnopagefilename'] = 'Debes escribir el nombre del archivo.';
     $plugin_lang['strerrnoextension'] = 'Debes escribir la extensi&#243;n php en el nombre del archivo.';
     $plugin_lang['strnodisplayname'] = 'Falta el nombre a mostrar.';
+    $plugin_lang['strnodisplaycolumns'] = 'Debe tener al menos una columna visible';
     $plugin_lang['strpageerrsavedb'] = 'Ocurri&#243; un problema cuando se guardaba la p&#225;gina en la base de datos.';
     $plugin_lang['strnouniquefilename'] = 'Existe otra p&#225;gina en la aplicaci&#243;n con el mismo nombre del archivo.';
     $plugin_lang['strerrfielddb'] = 'Ocurri&#243; un problema cuando se guardaba las columnas en la base de datos';

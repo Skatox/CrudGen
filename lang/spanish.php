@@ -6,7 +6,6 @@
         */
 
     // Language and character set
-    $plugin_lang['applang'] = 'Spanish';
     $plugin_lang['appcharset'] = 'ISO-8859-1';
     $plugin_lang['applocale'] = 'es_ES';
     $plugin_lang['appdbencoding'] = 'LATIN1';
@@ -119,7 +118,7 @@
     $plugin_lang['stremptyrows'] = 'No existen datos que satisfacen el criterio de búsqueda.';
     $plugin_lang['strgotopage'] = 'Ir a la página: ';
     $plugin_lang['strselectval'] = '--Seleccione--';
-    $plugin_lang['strnoSeleccioneeditems'] = 'Por favor seleccione algunos ítems para continuar.';
+    $plugin_lang['strnoselecteditems'] = 'Por favor seleccione algunos ítems para continuar.';
     $plugin_lang['strconfirmdelete'] = '¿Está seguro que desea eliminar los datos seleccionados?';
     $plugin_lang['strwriteprimarykey'] = 'Escribe la clave primaria del registro a editar.';
     
@@ -141,11 +140,12 @@
     $plugin_lang['strnopagefilename'] = 'Debes escribir el nombre del archivo.';
     $plugin_lang['strerrnoextension'] = 'Debes escribir la extensión php en el nombre del archivo.';
     $plugin_lang['strnodisplayname'] = 'Falta el nombre a mostrar.';
+    $plugin_lang['strnodisplaycolumns'] = 'Debe tener al menos una columna visible';
     $plugin_lang['strpageerrsavedb'] = 'Ocurrió un problema cuando se guardaba la página en la base de datos.';
     $plugin_lang['strnouniquefilename'] = 'Existe otra página en la aplicación con el mismo nombre del archivo.';
     $plugin_lang['strerrfielddb'] = 'Ocurrió un problema cuando se guardaba las columnas en la base de datos';
     $plugin_lang['strselpagetodelete'] = 'Seleccione las páginas a eliminar';
-    $plugin_lang['strselapptodelete'] = 'Seleccione las aplicaciones a eliminar';
+    $plugin_lang['strselapptodelete'] = 'Debe tener al menos una columna visible';
     $plugin_lang['strerrnoappid'] = 'Falta el identificador de la aplicación';
     $plugin_lang['strnocommonfile'] = 'Ocurrió un problema cuando se creaba el archivo común.';
     $plugin_lang['strloginerror'] = '¡Inicio de sesión incorrecto! Chequea si el usuario y contraseña son los correctos.';
