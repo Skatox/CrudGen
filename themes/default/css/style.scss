@@ -1,0 +1,273 @@
+/**Colors**/
+$black: #000;
+$fontWhite: #EEE;
+$darkGreen: #2F5500;
+$lightGreen: #DCF7DD;
+$lightGray: #F2F2F2;
+
+$bgMessage: #FFDD00;
+$borderMessage: #FFAA00;
+
+$bgError: #FF8888;
+$borderError: #FF2222;
+
+$rowHeight: 30px;
+
+/**Login**/
+$loginWidth: 300px;
+
+/**Dimensions**/
+$menuWidth: 200px;
+$menuPadding: 15px;
+$footerHeight: 33px;
+
+@font-face {
+	font-family: AftaSans;
+	src: url("../fonts/AftaSansThin-Regular.otf") format("opentype");
+}
+
+
+/**Box Shadow**/
+@mixin shadow($side: 0, $top: 0, $radius: 3px, $color: #333, $inset:"") {
+  -moz-box-shadow: $side $top $radius $color #{$inset};
+  -webkit-box-shadow: $side $top $radius $color #{$inset};
+  box-shadow: $side $top $radius $color #{$inset};
+}
+
+/**Border radius**/
+@mixin border-radius($radius: 5px) {
+  -moz-border-radius: $radius;
+  -webkit-border-radius: $radius;
+  border-radius: $radius;
+}
+
+body{ font-family: AftaSans; overflow-x: hidden; }
+
+p { margin-bottom: 10px;}
+
+a { color: $darkGreen; text-decoration: none;}
+a:hover { text-decoration: underline }
+a:visited { color: $darkGreen }
+
+#header, #footer {
+	background: $black;
+	color: $fontWhite;
+	width: 100%;
+	@include shadow(0,3px);
+}
+
+#header {
+	padding: 15px;
+	h1 { font-size: 3em; margin-bottom: 0.2em;}
+	h2 { font-size: 1em; }
+}
+
+#content-wrapper {	width: 100% }
+#sidebar, #content-wrapper { float: left; }
+
+#sidebar {
+	border-right: 1px dotted $darkGreen;
+	margin: 30px 0;
+	margin-left: -100%;
+	min-height: 500px;
+	padding: $menuPadding;
+    width: $menuWidth;
+
+    h3 { 
+    	color: $darkGreen;
+	    font-size: 1.2em;
+	    font-weight: bold;
+	    text-align: center;
+	    margin-bottom: 15px;
+    }
+
+    li {
+    	padding: 10px 0;
+    	a {
+	    	color: #333333;
+	    	font-size: 1em;
+	    	text-decoration: none;
+	    }
+    }
+}
+
+#content {
+	margin-left: $menuWidth + ($menuPadding*2);
+	padding: $menuPadding;
+	padding-bottom: 60px;
+	
+	h2 { font-size: 2em; font-weight: bold; color: $darkGreen; }
+	h3 { 
+		font-size: 1.1em;
+		margin: 5px 0;
+		color: $darkGreen;
+		text-transform: capitalize;
+	}
+	#info { margin: 5px 0 15px; padding: 10px 10px 10px 0; }
+}
+div.login { 
+	margin: 25px auto; 
+	padding: 20px; 
+	width: $loginWidth; 
+
+	label {
+		display: block;
+		float: left;
+		padding-right: 10px;
+		width: 80px;
+		text-align: right;
+		line-height: 30px;
+	}
+	input[type="text"], input[type="password"] {
+		height: 20px;
+		padding: 3px;
+	}
+
+	.row { padding: 10px 0;}
+
+	.buttons {
+		text-align: right;
+		input { padding: 10px }
+	}
+}
+
+div.logout {
+	text-align: center;
+	padding: 5px;
+	border-top: 1px dotted $lightGreen;
+}
+
+#operation-wrapper {
+	width: 100%;
+	.filter-wrapper { text-align: center; margin-bottom: 20px;}
+
+	#results {
+		clear: both;
+		margin: 0 auto 10px;
+
+		th { 
+			background: $lightGreen;
+			text-align: center;
+			font-weight: bold;
+			@include shadow(0, 1px, 0, rgba(255, 255, 255, 0.8), inset);
+
+			background-image: -moz-linear-gradient(center top , $lightGreen, #BCF7BB);
+			background-image: -webkit-linear-gradient(center top , $lightGreen, #BCF7BB);
+			background-image: linear-gradient(center top , $lightGreen, #BCF7BB);
+
+			&:first-child{ border-radius: 6px 0 0 0; border-left: medium none; }
+			&:last-child{ border-radius: 0 6px 0 0; }
+		}
+		th,td { padding: 5px 10px; border-bottom: 1px solid $lightGray; }
+		th a { cursor: pointer; }
+		th a.asc {
+			background: url('../img/asc.png') no-repeat 0 10px;
+			padding-left: 16px;
+		}		
+		th a.desc {
+			background: url('../img/desc.png') no-repeat 0 9px;
+			padding-left: 16px;
+		}
+		tr:nth-child(2n){
+			background: none repeat scroll 0 0 #F5F5F5;
+    		box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+		}
+		tr:hover { background: $lightGreen; }
+	}
+	input, select { padding: 4px; }
+	input[type="submit"] { cursor: pointer; }
+	input.required {
+		background: url('../img/required.png') scroll no-repeat right 7px transparent;
+		padding-right: 10px;
+	}
+
+	.pagination-wrapper, .limit-wrapper { text-align: center; font-size: small;	}
+	.limit-wrapper {  select { margin-right: 5px;	}	}
+
+	.pagination-wrapper { 
+		margin: 3px 0;
+		a { cursor: pointer; color: $darkGreen; margin: 0 10px; }
+	}
+
+	.actions-wrapper { display: inline	}
+	.create, .update { text-align: center; display: block; margin: 30px 0; }
+
+	.button, .create input, .update input  {
+		background-color: $lightGreen;
+		border: 1px solid $darkGreen;
+		color: $darkGreen;
+
+		@include border-radius(7px);
+		@include shadow(1px, 1px, 2px, #c2c2c2);
+
+	    font-size: small;
+	    height: 31px;
+	    margin-right: 10px;
+	    padding: 5px 10px;
+	    text-decoration: none;
+	}
+	.button:hover { background-color: $lightGray; }
+
+	.form-wrapper {
+		text-align: center;
+		padding-bottom: 20px;
+
+		label {
+			margin-right: 10px;
+			display: inline;
+			font-weight: bold;
+			text-transform: capitalize;
+			text-align: right;
+			width: 200px;
+			line-height: 25px;
+		}
+		input { width: 200px; }
+		.row { height: $rowHeight; margin-bottom: 5px; }
+		.label-wrapper, .value-wrapper { width: 50%; float: left; }
+		.label-wrapper { text-align: right; }
+		.value-wrapper { text-align: left; }
+	}
+}
+
+td.actions {
+	a.action { font-size: small; margin-right: 5px;	}
+}
+
+div.message, div.errorMsg {
+    @include border-radius(10px);
+    font-weight: bold;
+	color: #333;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+  	left: 50%;
+    margin-left: -250px;
+    margin-top: 12px;
+    position: absolute;
+    width: 500px;
+}
+
+div.errorMsg { background: $bgError; border: 1px solid $borderError; }
+
+label.error {
+	padding-left: 10px;
+    font-size: small;
+    color: red;
+    font-style: italic;
+}
+
+div.message { background: $bgMessage; border: 1px solid $borderMessage; }
+
+#footer {
+	clear: both;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	padding: 2px;
+	border-top: 2px solid $darkGreen;
+	height: $footerHeight;
+	.generated { float: left; font-size: 0.8em; line-height: 29px; }
+	.xhtml-valid{ float:right; padding-right: 5px; }
+}
+
+div.ui-datepicker{ font-size:13px; }
