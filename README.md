@@ -3,7 +3,7 @@ CRUDGen
 
 CRUDGen is a plugin for [phpPgAdmin](http://phppgadmin.sourceforge.net/) to generate CRUD (Create, Report, Update and Delete) pages from tables in the database. 
 
-This was my university's thesis project, so if you see some mistakes and designs errors was due the lack of experience, but after all this time I've tried to solve most them and plugins works.
+This was my university's thesis project, so if you see some mistakes and designs errors, it was due to the lack of experience, but after all this time I've tried to solve most them and plugins works.
 
 Before you file an issue, make sure you have read the _[known issues](#known-issues)_ and _[file an issue](#file-an-issue)_ sections that contains some important information.
 
