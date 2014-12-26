@@ -1,10 +1,5 @@
 <?php
-
-require_once './plugins/CrudGen/classes/GenHtml.php';
-require_once './plugins/CrudGen/classes/Generator/GenPsql.php';
-require_once './plugins/CrudGen/classes/Generator/GenPDO.php';
-
-class Generator
+class CodeGenerator
 {
 
     public $app;
@@ -17,12 +12,13 @@ class Generator
     function __construct($application)
     {
         $this->app = $application;
-
+        
         //Instances the object according to the selected library
-        if ($this->app->library == 'pgsql')
+        if ($this->app->library == 'pgsql') {
             $this->codeGen = new GenPsql($this->app->lang);
-        else
+        } else {
             $this->codeGen = new GenPDO($this->app->lang);
+        }
     }
 
 
@@ -247,7 +243,7 @@ class Generator
                     $selects[] = " a{$tables}." . $column_name;
 
                     //Checks for remote PK and compares with fk (in the sql sentence)
-                    $fk_pk = Generator::getPK($this->app->getDBName(),
+                    $fk_pk = CodeGenerator::getPK($this->app->getDBName(),
                         $column->getRemoteTable());
 
                     $joins[] = "\n\t\t\t\tINNER JOIN {$column->getRemoteTable()} a{$tables} "
@@ -393,7 +389,7 @@ class Generator
 
                 if ($column->isFK()) {
                     $selects[] = "a{$tables}." . $column->getRemoteField();
-                    $fk_pk = Generator::getPK($this->app->getDBName(), $column->getRemoteTable());
+                    $fk_pk = CodeGenerator::getPK($this->app->getDBName(), $column->getRemoteTable());
                     $joins[] = "\n\t\t\t\tINNER JOIN {$column->getRemoteTable()} a{$tables} "
                         . " ON a.{$column->getName()}=a{$tables}.{$fk_pk} ";
                     $tables++;
@@ -1038,4 +1034,3 @@ class Generator
 
 
 }
-?>

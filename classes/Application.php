@@ -23,8 +23,8 @@ class Application
     private $auth_pass_col;
     public $name;
     public $folder;
-    public $theme;
     public $library;
+    public $theme;
     public $lang;
     public $pages = array(); //object to represent pages in a application
 
@@ -46,12 +46,13 @@ class Application
      */
     public function deletePage( $id )
     {
-        $success = false;
-        foreach ( $this->pages as $page )
-            if ( $page->getPageID() == $id )
+        foreach ( $this->pages as $page ) {
+            if ( $page->getPageID() == $id ){
                 return $page->delete();
+            }
+        }
 
-            return false;
+        return false;
     }
 
     /**
@@ -81,12 +82,8 @@ class Application
     {
         global $data, $lang;
 
-        //Generates user with application's name as base
-        $this->db_user = trim( $this->name, "!$#@\"\\/" );
-        $this->db_user = str_replace( " ", "_", $this->db_user );
-
-        //Generates a password for this user
-        $this->db_pass = crypt( $this->name );
+        $this->db_user = str_replace( " ", "_", trim( $this->name, "!$#@\"\\/" ) ); //application's name as base
+        $this->db_pass = crypt( $this->name ); //Generates a password for this user
     }
 
     /**
@@ -111,11 +108,13 @@ class Application
      */
     function deleteAppFiles( $path = null )
     {
-        if ( !$path )
+        if ( !$path ) {
             $path = $this->app_main_path;
+        }
 
-        if ( !file_exists( $path ) )
+        if ( !file_exists( $path ) ) {
             return false;
+        }
 
         $origipath = $path;
         $handler = opendir( $path );
@@ -129,20 +128,21 @@ class Application
             } elseif ( gettype( $file ) == "boolean" )
             {
                 closedir( $handler );
-                if ( !@rmdir( $path ) )
+                if ( !@rmdir( $path ) ) {
                     return false;
-                if ( $path == $origipath )
+                }
+
+                if ( $path == $origipath ) {
                     return true;
+                }
 
                 $path = substr( $path, 0, strrpos( $path, DIRECTORY_SEPARATOR ) );
                 $handler = opendir( $path );
-            } elseif ( is_dir( $path . DIRECTORY_SEPARATOR . $file ) )
-            {
+            } elseif ( is_dir( $path . DIRECTORY_SEPARATOR . $file ) ) {
                 closedir( $handler );
                 $path = $path . DIRECTORY_SEPARATOR . $file;
                 $handler = opendir( $path );
-            } else
-            {
+            } else {
                 unlink( $path . DIRECTORY_SEPARATOR . $file );
             }
         }
@@ -159,17 +159,14 @@ class Application
         //validates if there are any page to generate
         foreach ( $this->pages as $page )
         {
-            if
-            ( !empty( $page->page_title ) )
-            {
+            if ( !empty( $page->page_title ) ) {
                 $pagesToGenerate = true;
                 break;
             }
         }
-        if
-        ( $pagesToGenerate )
+        if ( $pagesToGenerate ) 
         {
-            $generator = new Generator( $this );
+            $generator = new CodeGenerator( $this );
             $this->theme = isset( $_REQUEST['app_theme'] ) ? $_REQUEST['app_theme'] : 'default';
             $this->library = isset( $_REQUEST['app_library'] ) ? $_REQUEST['app_library'] : 'pgsql';
 
@@ -177,23 +174,20 @@ class Application
             if ( function_exists( 'sys_get_temp_dir' ) )
             {
                 $this->folder = sys_get_temp_dir();
-            } else
-            {
-                if ( !empty( $_ENV['TMP'] ) )
-                {
+            } else {
+                if ( !empty( $_ENV['TMP'] ) )  {
                     $this->folder = $_ENV['TMP'];
-                } else if ( !empty( $_ENV['TMPDIR'] ) )
-                    {
-                        $this->folder = $_ENV['TMPDIR'];
-                    } else if ( !empty( $_ENV['TEMP'] ) )
-                    {
-                        $this->folder = $_ENV['TEMP'];
-                    }
+                } else if ( !empty( $_ENV['TMPDIR'] ) )  {
+                    $this->folder = $_ENV['TMPDIR'];
+                } else if ( !empty( $_ENV['TEMP'] ) )  {
+                    $this->folder = $_ENV['TEMP'];
+                }
             }
+
             $this->folder .= DIRECTORY_SEPARATOR . $this->getFolderName();
 
 
-            Generator::recursive_copy( "plugins/CrudGen/themes/" . $this->theme, $this->folder );
+            CodeGenerator::recursive_copy( "plugins/CrudGen/themes/" . $this->theme, $this->folder );
             $generator->writeCommonFile();
 
             if ( !$generator->generatePages() )
@@ -205,19 +199,17 @@ class Application
             {
                 $zip_folder = $this->folder . '.zip';
                 $filename = $this->getFolderName() . '.zip';
+
                 if ( file_exists( $zip_folder ) )
                 {
                     header( 'Content-type: application/zip' );
                     header( "Content-Disposition: attachment; filename={$filename}" );
                     readfile( $zip_folder );
                     unlink( $zip_folder );
-                } else
-                {
+                } else {
                     $misc->printMsg( "{$this->lang['strerrpagegen']}" );
                 }
-            }
-            else
-            {
+            } else {
                 $misc->printMsg( "{$this->lang['strerrpagegen']}" );
             }
         }
@@ -546,7 +538,7 @@ class Application
         }
 
         if ( !empty( $menu_code ) )
-            $menu_code = "\t\techo '<ul class=\"main-menu\">';{$menu_code}\n\t\techo '</ul>';";
+            $menu_code = "\t\techo '<ul class=\"main-menu nav navbar-nav\">';{$menu_code}\n\t\techo '</ul>';";
 
         return $menu_code;
     }
@@ -576,7 +568,7 @@ class Application
      *
      * @param unknown $database name of the database where are the applications stored
      */
-    public static function getApplication( $app_id )
+    public static function get( $app_id )
     {
         global $data, $misc;
 
@@ -598,7 +590,7 @@ class Application
      *
      * @param unknown $database name of the database where are the applications stored
      */
-    public static function getAppNameFromDB( $app_id )
+    public static function getNameFromDB( $app_id )
     {
         global $data, $misc;
 
@@ -617,7 +609,7 @@ class Application
      *
      * @param unknown $database name of the database where are the applications stored
      */
-    public static function getApps( $database, $schema )
+    public static function getAll( $database, $schema )
     {
         global $data, $misc;
 
@@ -627,9 +619,8 @@ class Application
             . "a.date_created,a.db_schema,a.db_name,"
             . "(SELECT count(*) FROM crudgen.pages p WHERE p.app_id=a.app_id) as pages "
             . "FROM crudgen.application a "
-            . "WHERE app_owner='{$server_info["username"]}' "
-            . "AND db_name='%s' AND db_schema='%s' "
-            . "ORDER BY a.date_created DESC", $database, $schema );
+            . "WHERE app_owner='%s' AND db_name='%s' AND db_schema='%s' "
+            . "ORDER BY a.date_created DESC",$server_info["username"], $database, $schema );
         $rs = $driver->selectSet( $sql );
 
         return $rs;
@@ -773,10 +764,11 @@ class Application
         {
             $rs = $this->insert();
 
-            if ( $rs < 1 )
+            if ( $rs < 1 ) {
                 return false;
-            else
+            } else {
                 $this->app_id = $rs;
+            }
         }
         else
         {
@@ -785,6 +777,7 @@ class Application
 
         //saves all fields in each page object and the saves the page
         if ( $rs )
+        {
             foreach ( $this->pages as $page )
             {
                 if ( ( $page_id = $page->insertPageAtDB( $app_id ) ) >= 0 )
@@ -792,9 +785,11 @@ class Application
                     $table_id = $page->insertTableAtDB( $page_id );
                     $page->insertFieldsAtDB( $table_id );
                 }
-                else
+                else {
                     return false;
+                }
             }
+        }
 
         return $rs;
     }

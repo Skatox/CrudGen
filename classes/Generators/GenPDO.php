@@ -2,7 +2,6 @@
 /**
  * Class for generating PDO code
  */
-require_once('./plugins/CrudGen/classes/Generator/CodeGen.php');
 
 class GenPDO extends CodeGen 
 {

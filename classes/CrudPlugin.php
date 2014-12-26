@@ -4,8 +4,6 @@
  * the development of the CRUD plugin
  *
  */
-require_once './classes/Plugin.php';
-
 class CrudPlugin extends Plugin
 {
 	/**

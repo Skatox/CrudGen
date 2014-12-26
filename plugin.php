@@ -1,10 +1,14 @@
 <?php
-
-require_once './plugins/CrudGen/classes/CrudPlugin.php';
-require_once './plugins/CrudGen/classes/Application.php';
-require_once './plugins/CrudGen/classes/Columns.php';
-require_once './plugins/CrudGen/classes/Page.php';
-require_once './plugins/CrudGen/classes/Generator.php';
+require_once('./classes/Plugin.php');
+require_once ('./plugins/CrudGen/classes/CrudPlugin.php');
+require_once ('./plugins/CrudGen/classes/Application.php');
+require_once ('./plugins/CrudGen/classes/Columns.php');
+require_once ('./plugins/CrudGen/classes/Page.php');
+require_once ('./plugins/CrudGen/classes/CodeGenerator.php');
+require_once ('./plugins/CrudGen/classes/GenHtml.php');
+require_once ('./plugins/CrudGen/classes/Generators/CodeGen.php');
+require_once ('./plugins/CrudGen/classes/Generators/GenPDO.php');
+require_once ('./plugins/CrudGen/classes/Generators/GenPgsql.php');
 
 class CrudGen extends CrudPlugin
 {
@@ -95,7 +99,7 @@ class CrudGen extends CrudPlugin
         $trail = &$plugin_functions_parameters['trail'];
 
         if ( isset( $_REQUEST['app_id'] ) )
-            $name = Application::getAppNameFromDB( $_REQUEST['app_id'] );
+            $name = Application::getNameFromDB( $_REQUEST['app_id'] );
 
         if ( !empty( $name ) ) {
             $url = array(
@@ -187,7 +191,7 @@ class CrudGen extends CrudPlugin
             ),
         );
 
-        $rs = Application::getApplication( $app_id );
+        $rs = Application::get( $app_id );
         $misc->printTable( $rs, $columns, $actions, null, $this->lang['strnoapps'] );
         $extra_vars = array( 'app_id' => $app_id, 'plugin' => $this->name );
 
@@ -280,10 +284,11 @@ class CrudGen extends CrudPlugin
 
         if ( $this->checkAppDB() ) {
             //Checks if appgen db was installed
-            $rs = Application::getApps( $_REQUEST['database'], $_REQUEST['schema'] );
+            $rs = Application::getAll( $_REQUEST['database'], $_REQUEST['schema'] );
 
-            if ( !empty( $msg ) )
+            if ( !empty( $msg ) ) {
                 $misc->printMsg( $msg );
+            }
 
             $misc->printTable( $rs, $columns, $actions, null, $this->lang['strnoapps'] );
         }
@@ -360,7 +365,7 @@ class CrudGen extends CrudPlugin
             echo "<form id=\"createappform\" method=\"post\">\n";
             echo "<table><tr><th class=\"data left required\">{$lang['strname']}</th>";
             echo "<td class=\"data\"><input type=\"text\"  name=\"name\" size=\"33\" maxlength=\"63\" value=\"";
-            echo htmlspecialchars( $_REQUEST['name'] ) . "\" /> *</td>\</tr>";
+            echo htmlspecialchars( $_REQUEST['name'] ) . "\" /> *</td></tr>";
             echo "<tr><th class=\"data left\">{$this->lang['strdescr']}</th>";
             echo "<td class=\"data\"><textarea name=\"descr\" rows=\"3\" cols=\"33\" style=\"overflow:auto;\">";
             echo "{$_REQUEST["descr"]}</textarea></td></tr>";
@@ -381,24 +386,27 @@ class CrudGen extends CrudPlugin
             echo "<tr><th class=\"data left required\">{$this->lang['strsecaccess']}</th>";
             echo "<td><select name=\"auth_method\" id=\"auth_method\" style=\"width:100%;\" onchange=\"updateSecurityTable()\"><option value=\"none\"";
            
-            if ( $_REQUEST['auth_method'] == 'none' )
+            if ( $_REQUEST['auth_method'] == 'none' ){
                 echo " selected=\"selected\"";
+            }
             echo ">{$this->lang['strnosecurity']}</option><option value=\"dbuser\"";
            
-            if ( $_REQUEST['auth_method'] == 'dbuser' )
+            if ( $_REQUEST['auth_method'] == 'dbuser' ){
                 echo " selected=\"selected\"";
+            }
             echo ">{$this->lang['strsecdbuser']}</option><option value=\"dbtable\"";
            
-            if ( $_REQUEST['auth_method'] == 'dbtable' )
+            if ( $_REQUEST['auth_method'] == 'dbtable' ){
                 echo " selected=\"selected\"";
-            
+            }
             echo ">{$this->lang['strsecdbstored']}</option></select></td></tr>";
 
             //Security parameters
             echo "<tr id=\"table-row\" ";
 
-            if ( $_REQUEST['auth_method'] != 'dbtable' )
+            if ( $_REQUEST['auth_method'] != 'dbtable' ){
                 echo "style=\"display:none\"";
+            }
 
             echo"><th class=\"data left required\">{$lang['strtable']}</th>";
             echo "<td><select name=\"auth_table\" onchange=\"updateColumns()\" >";
@@ -407,8 +415,9 @@ class CrudGen extends CrudPlugin
             echo "</select></td></tr>";
             echo "<tr id=\"user-row\" ";
 
-            if ( $_REQUEST['auth_method'] != 'dbtable' )
+            if ( $_REQUEST['auth_method'] != 'dbtable' ){
                 echo "style=\"display:none\"";
+            }
 
             echo"><th class=\"data left required\">{$lang['strusername']}</th>";
             echo "<td><select id=\"auth_user_col\" name=\"auth_user_col\">";
@@ -417,8 +426,9 @@ class CrudGen extends CrudPlugin
             echo "</select></td></tr>";
             echo "<tr id=\"pass-row\" ";
 
-            if ( $_REQUEST['auth_method'] != 'dbtable' )
+            if ( $_REQUEST['auth_method'] != 'dbtable' ){
                 echo "style=\"display:none\"";
+            }
 
             echo"><th class=\"data left required\">{$lang['strpassword']}</th>";
             echo "<td><select id=\"auth_pass_col\" name=\"auth_pass_col\">";
@@ -469,8 +479,9 @@ class CrudGen extends CrudPlugin
             $app->buildRequest();
             $this->create_app();
         }
-        else
+        else{
             $this->show_apps();
+        }
     }
 
 
@@ -523,8 +534,9 @@ class CrudGen extends CrudPlugin
         $app->setAttributes();
         $unique_name = $app->hasUniqueName();
 
-        if ( !$unique_name )
+        if ( !$unique_name ){
             return $this->create_app( $this->lang['strnouniquename'] );
+        }
 
         if ( $app->save() ) {
             $msg = ( empty( $_REQUEST['app_id'] ) ) ? $this->lang['strappsaved'] : $this->lang['strappedited'];
@@ -547,8 +559,9 @@ class CrudGen extends CrudPlugin
     {
         global $lang, $misc, $_reload_browser;
 
-        if ( !empty( $_REQUEST['cancel'] ) )
+        if ( !empty( $_REQUEST['cancel'] ) ){
             return $this->show_apps();
+        }
 
         if ( !isset( $_REQUEST["app_id"] ) && !isset( $_REQUEST['ma'] ) ) {
             $this->show_apps( $this->lang['strselapptodelete'] );
@@ -622,8 +635,9 @@ class CrudGen extends CrudPlugin
         $tbls_db = $data->getTables();
         $tbls_4_ins = array();
 
-        if ( !isset( $_SESSION["crudgen_create"] ) )
+        if ( !isset( $_SESSION["crudgen_create"] ) ) {
             return;
+        }
 
         foreach ( $_SESSION["crudgen_create"] as $table_name => $table ) {
             $tbls_4_ins[] = $table_name;
@@ -713,11 +727,13 @@ class CrudGen extends CrudPlugin
                     }
                 }
             }
-            else
+            else {
                 $misc->printMsg( $this->lang['strnone'] );
+            }
         }
-        else
+        else {
             $misc->printMsg( $this->lang['strnone'] );
+        }
     }
 
 
@@ -752,192 +768,193 @@ class CrudGen extends CrudPlugin
                 echo "\n<form id=\"pages\" name=\"pages\" action=\"\" method=\"post\">";
             }
 
-            switch ( $_REQUEST['step'] ) {
-            case 1:
-                echo "<p>{$this->lang['strtbldetect']}</p>";
-                echo "<p><span style=\"font-style:italic;\">({$this->lang['stratbldetectwarn']})</span></p>";
+            switch ( $_REQUEST['step'] ) 
+            {
+                case 1:
+                    echo "<p>{$this->lang['strtbldetect']}</p>";
+                    echo "<p><span style=\"font-style:italic;\">({$this->lang['stratbldetectwarn']})</span></p>";
 
-                foreach ( $tbltmp as $i ) {
-                    $attrs = $data->getTableAttributes( $i['relname'] );
-                    /*
-                     * Here  prints a list of tables from current schema,
-                     * the user selects wich tables are going to be used by the
-                     * application, then it sends the information to the operation page
-                     * for processing
-                     */
-                    if ( $attrs->recordCount() > 0 ) {
-                        echo "<div  id=\"table_{$i['relname']}\" class=\"trail\" style=\"float:left;margin:5px;\">";
-                        echo "<h3>{$i['relname']}</h3>";
+                    foreach ( $tbltmp as $i ) {
+                        $attrs = $data->getTableAttributes( $i['relname'] );
+                        /*
+                         * Here  prints a list of tables from current schema,
+                         * the user selects wich tables are going to be used by the
+                         * application, then it sends the information to the operation page
+                         * for processing
+                         */
+                        if ( $attrs->recordCount() > 0 ) {
+                            echo "<div  id=\"table_{$i['relname']}\" class=\"trail\" style=\"float:left;margin:5px;\">";
+                            echo "<h3>{$i['relname']}</h3>";
 
-                        while ( !$attrs->EOF ) {
-                            /*
-                             * checks if can't be null so must be selected, due to problems with HTML
-                             * i need to create a hidden value to send the value
-                             */
-                            echo "<input type=\"checkbox\" ";
-                            if ( $attrs->fields['attnotnull'] == 't' ) {
-                                echo "name=\"chk-{$i['relname']}\" checked=\"checked\" disabled=\"disabled\"/>";
-                                echo "<input type=\"hidden\"";
+                            while ( !$attrs->EOF ) {
+                                /*
+                                 * checks if can't be null so must be selected, due to problems with HTML
+                                 * i need to create a hidden value to send the value
+                                 */
+                                echo "<input type=\"checkbox\" ";
+                                if ( $attrs->fields['attnotnull'] == 't' ) {
+                                    echo "name=\"chk-{$i['relname']}\" checked=\"checked\" disabled=\"disabled\"/>";
+                                    echo "<input type=\"hidden\"";
+                                }
+                                echo "name=\"field[{$i['relname']}][]\" value=\"{$attrs->fields['attname']}\"";
+
+
+                                if ( isset( $_REQUEST['field'][$i['relname']] ) ) {
+                                    foreach ( $_REQUEST['field'][$i['relname']] as $column )
+                                        if ( $column == $attrs->fields['attname'] )
+                                            echo "checked=\"checked\"";
+                                }
+                                echo "/>&nbsp;";
+                                echo $attrs->fields['attname'] . '<br />';
+                                $attrs->moveNext();
                             }
-                            echo "name=\"field[{$i['relname']}][]\" value=\"{$attrs->fields['attname']}\"";
-
-
-                            if ( isset( $_REQUEST['field'][$i['relname']] ) ) {
-                                foreach ( $_REQUEST['field'][$i['relname']] as $column )
-                                    if ( $column == $attrs->fields['attname'] )
-                                        echo "checked=\"checked\"";
-                            }
-                            echo "/>&nbsp;";
-                            echo $attrs->fields['attname'] . '<br />';
-                            $attrs->moveNext();
+                            echo "<p>{$lang['strselect']} <a href=\"#\" onclick=\"checkAllCheckboxes('table_{$i['relname']}', true); return false;\">{$this->lang['strall']}</a>";
+                            echo " | <a href=\"#\" onclick=\"checkAllCheckboxes('table_{$i['relname']}', false); return false;\">{$this->lang['strnone']}</a></p>";
+                            echo "</div>";
                         }
-                        echo "<p>{$lang['strselect']} <a href=\"#\" onclick=\"checkAllCheckboxes('table_{$i['relname']}', true); return false;\">{$this->lang['strall']}</a>";
-                        echo " | <a href=\"#\" onclick=\"checkAllCheckboxes('table_{$i['relname']}', false); return false;\">{$this->lang['strnone']}</a></p>";
-                        echo "</div>";
                     }
-                }
-                break; //end case 1
+                    break; //end case 1
 
                 /**
                  * Prints the main table for selecting operations to columns
                  */
-            case 2:
-                $_SESSION['apptables'] = $_POST['field'];
+                case 2:
+                    $_SESSION['apptables'] = $_POST['field'];
 
-                echo "<br />{$this->lang['strseloperation']}<br /><br />";
-                foreach ( $_REQUEST['field'] as $table_name => $table ) {
-                    if ( count( $table ) > 0 ) {
-                        //if receives a field from a new table prints a new table
-                        $th_style = ' style="padding:1px 10px" ';
-                        echo "<div id=\"table_{$table_name}\" style=\"float:left;padding:5px;\">";
-                        echo '<table border="1"><tr>';
-                        echo '<th class="data">' . str_replace( "'", "", $table_name ) . '</th>';
-                        echo '</tr><tr><td>';
-                        echo "<table><tr><th class=\"data\">{$lang['strname']}</th>";
-                        echo "<th class=\"data\"{$th_style}>{$lang['strcreate']}</th>";
-                        echo "<th class=\"data\" {$th_style} >{$this->lang['strreport']}</th>";
-                        echo "<th class=\"data\"{$th_style}>{$lang['strupdate']}</th></tr>";
+                    echo "<br />{$this->lang['strseloperation']}<br /><br />";
+                    foreach ( $_REQUEST['field'] as $table_name => $table ) {
+                        if ( count( $table ) > 0 ) {
+                            //if receives a field from a new table prints a new table
+                            $th_style = ' style="padding:1px 10px" ';
+                            echo "<div id=\"table_{$table_name}\" style=\"display: inline-block; vertical-align:top; padding:5px;\">";
+                            echo '<table border="1"><tr>';
+                            echo '<th class="data">' . str_replace( "'", "", $table_name ) . '</th>';
+                            echo '</tr><tr><td>';
+                            echo "<table><tr><th class=\"data\">{$lang['strname']}</th>";
+                            echo "<th class=\"data\"{$th_style}>{$lang['strcreate']}</th>";
+                            echo "<th class=\"data\" {$th_style} >{$this->lang['strreport']}</th>";
+                            echo "<th class=\"data\"{$th_style}>{$lang['strupdate']}</th></tr>";
 
-                        $rowClass = 'data1';
-                        foreach ( $table as $column ) {
-                            echo "<tr><td style=\"padding:1px 5px\" class=\"{$rowClass}\">{$column}</td>";
-                            $this->printOperationTableCell( "crudgen_create", $rowClass, $table_name, $column );
-                            $this->printOperationTableCell( "crudgen_report", $rowClass, $table_name, $column );
-                            $this->printOperationTableCell( "crudgen_update", $rowClass, $table_name, $column );
-                            echo "</tr>";
-                            $rowClass = ( $rowClass == 'data1' ) ? 'data2' : 'data1';
+                            $rowClass = 'data1';
+                            foreach ( $table as $column ) {
+                                echo "<tr><td style=\"padding:1px 5px\" class=\"{$rowClass}\">{$column}</td>";
+                                $this->printOperationTableCell( "crudgen_create", $rowClass, $table_name, $column );
+                                $this->printOperationTableCell( "crudgen_report", $rowClass, $table_name, $column );
+                                $this->printOperationTableCell( "crudgen_update", $rowClass, $table_name, $column );
+                                echo "</tr>";
+                                $rowClass = ( $rowClass == 'data1' ) ? 'data2' : 'data1';
+                            }
+                            echo "</table></td></tr></table>";
+                            echo "<p style=\"font-size:smaller;\">{$lang['strselect']} <a href=\"#js\" onclick=\"checkAllCheckboxes('table_{$table_name}', true); \">{$this->lang['strall']}</a>";
+                            echo " / <a href=\"#js\" onclick=\"checkAllCheckboxes('table_{$table_name}', false);\">{$this->lang['strnone']}</a></p>";
+                            echo "</div>";
                         }
-                        echo "</table></td></tr></table>";
-                        echo "<p style=\"font-size:smaller;\">{$lang['strselect']} <a href=\"#js\" onclick=\"checkAllCheckboxes('table_{$table_name}', true); \">{$this->lang['strall']}</a>";
-                        echo " / <a href=\"#js\" onclick=\"checkAllCheckboxes('table_{$table_name}', false);\">{$this->lang['strnone']}</a></p>";
-                        echo "</div>";
                     }
-                }
-                break; //end case 2
+                    break; //end case 2
 
                 /**
                  *  Here it prints a list of detected pages  and ask the user
                  *  to confirm this information o go back and make some changes
                  */
-            case 3:
+                case 3:
 
-                echo "<table><tr><td style=\"text-align:left;\" >";
-                echo "<br />{$this->lang['strpagesdetected']}<br /><br />";
+                    echo "<table><tr><td style=\"text-align:left;\" >";
+                    echo "<br />{$this->lang['strpagesdetected']}<br /><br />";
 
-                //Saves selected operations in to a session variable
-                if ( isset( $_POST['crudgen_report'] ) ) $_SESSION['crudgen_report'] = $_POST['crudgen_report'];
-                if ( isset( $_POST['crudgen_create'] ) ) $_SESSION['crudgen_create'] = $_POST['crudgen_create'];
-                if ( isset( $_POST['crudgen_update'] ) ) $_SESSION['crudgen_update'] = $_POST['crudgen_update'];
+                    //Saves selected operations in to a session variable
+                    if ( isset( $_POST['crudgen_report'] ) ) $_SESSION['crudgen_report'] = $_POST['crudgen_report'];
+                    if ( isset( $_POST['crudgen_create'] ) ) $_SESSION['crudgen_create'] = $_POST['crudgen_create'];
+                    if ( isset( $_POST['crudgen_update'] ) ) $_SESSION['crudgen_update'] = $_POST['crudgen_update'];
 
-                //Adds external dependencies (like FK dependencies)
-                $this->addDependencies();
+                    //Adds external dependencies (like FK dependencies)
+                    $this->addDependencies();
 
-                //Prints a list of detected pages
-                $this->printDetectedPages( 'report' );
-                $this->printDetectedPages( 'create' );
-                $this->printDetectedPages( 'update' );
+                    //Prints a list of detected pages
+                    $this->printDetectedPages( 'report' );
+                    $this->printDetectedPages( 'create' );
+                    $this->printDetectedPages( 'update' );
 
-                echo "</td></tr></table>";
-                break;
+                    echo "</td></tr></table>";
+                    break;
 
                 /*
                  * Here stores detected pages into the DB
                  */
-            case 4:
-                $app = new Application();
-                $app->load( $_REQUEST['app_id'] );
-                $operations = array( "report", 'create', "update", "delete" );
+                case 4:
+                    $app = new Application();
+                    $app->load( $_REQUEST['app_id'] );
+                    $operations = array( "report", 'create', "update", "delete" );
 
-                foreach ( $operations as $operation ) {
+                    foreach ( $operations as $operation ) {
 
-                    //Creates filename prefix
-                    switch ( $operation ) {
-                    case "report":
-                        $prefix = "report_";
-                        break;
-                    case 'create':
-                        $prefix = "create_";
-                        break;
-                    case "update":
-                        $prefix = "update_";
-                        break;
-                    case "delete":
-                        $prefix = "delete_";
-                        break;
-                    }
+                        //Creates filename prefix
+                        switch ( $operation ) {
+                        case "report":
+                            $prefix = "report_";
+                            break;
+                        case 'create':
+                            $prefix = "create_";
+                            break;
+                        case "update":
+                            $prefix = "update_";
+                            break;
+                        case "delete":
+                            $prefix = "delete_";
+                            break;
+                        }
 
-                    if ( isset( $_SESSION['crudgen_' . $operation] ) ) {
-                        foreach ( $_SESSION['crudgen_' . $operation] as $table_name => $table ) {
-                            if ( count( $_SESSION['crudgen_' . $operation] ) > 0 ) {
-                                $page_obj = new Page();
-                                $filename = $prefix . trim( str_replace( "'", "", $table_name ) ) . ".php";
+                        if ( isset( $_SESSION['crudgen_' . $operation] ) ) {
+                            foreach ( $_SESSION['crudgen_' . $operation] as $table_name => $table ) {
+                                if ( count( $_SESSION['crudgen_' . $operation] ) > 0 ) {
+                                    $page_obj = new Page();
+                                    $filename = $prefix . trim( str_replace( "'", "", $table_name ) ) . ".php";
 
-                                //Write generated code to file
-                                if ( $app->checkIfPageExists( $filename ) ) {
-                                    $num = 1;
-                                    $or_filename = substr( $filename, 0, -4 );
-                                    $filename = $or_filename . "-" . $num . ".php";
-
-                                    while ( $app->checkIfPageExists( $filename ) ) {
-                                        $num = $num + 1;
+                                    //Write generated code to file
+                                    if ( $app->checkIfPageExists( $filename ) ) {
+                                        $num = 1;
+                                        $or_filename = substr( $filename, 0, -4 );
                                         $filename = $or_filename . "-" . $num . ".php";
+
+                                        while ( $app->checkIfPageExists( $filename ) ) {
+                                            $num = $num + 1;
+                                            $filename = $or_filename . "-" . $num . ".php";
+                                        }
                                     }
+
+                                    //Builds page object
+                                    $page_obj->setFilename( $filename );
+                                    $page_obj->setOperation( $operation );
+                                    $page_obj->setTable( str_replace( "'", "", $table_name ) );
+
+                                    foreach ( $table as $column ) {
+                                        //creates a field object
+                                        $field = new Columns();
+                                        $field->setName( $column );
+                                        $page_obj->addField( $field );
+                                    }
+
+                                    //Adds a page to application object, then creates a new Page object
+                                    $page_id = $page_obj->insert( $_REQUEST['app_id'] );
+                                    if ( $page_id < 0 ) {
+                                        $misc->printMsg( $this->lang['strerrorappsavedb'] );
+                                        exit( 1 );
+                                    }
+
+                                    $table_id = $page_obj->saveTable( $page_id );
+                                    if ( $table_id < 0 ) {
+                                        $misc->printMsg( $this->lang['strerrorappsavedb'] );
+                                        exit( 1 );
+                                    }
+
+                                    $page_obj->saveColumns( $table_id );
                                 }
-
-                                //Builds page object
-                                $page_obj->setFilename( $filename );
-                                $page_obj->setOperation( $operation );
-                                $page_obj->setTable( str_replace( "'", "", $table_name ) );
-
-                                foreach ( $table as $column ) {
-                                    //creates a field object
-                                    $field = new Columns();
-                                    $field->setName( $column );
-                                    $page_obj->addField( $field );
-                                }
-
-                                //Adds a page to application object, then creates a new Page object
-                                $page_id = $page_obj->insert( $_REQUEST['app_id'] );
-                                if ( $page_id < 0 ) {
-                                    $misc->printMsg( $this->lang['strerrorappsavedb'] );
-                                    exit( 1 );
-                                }
-
-                                $table_id = $page_obj->saveTable( $page_id );
-                                if ( $table_id < 0 ) {
-                                    $misc->printMsg( $this->lang['strerrorappsavedb'] );
-                                    exit( 1 );
-                                }
-
-                                $page_obj->saveColumns( $table_id );
                             }
                         }
                     }
-                }
 
-                $this->cleanWizardVars();
-                $this->show_app( $this->lang['strsavepagessuccessful'] );
-                return;
+                    $this->cleanWizardVars();
+                    $this->show_app( $this->lang['strsavepagessuccessful'] );
+                    return;
             }
 
             echo "<input type=\"hidden\" name=\"app_id\" value=\"{$_REQUEST['app_id']}\" />";
@@ -956,8 +973,7 @@ class CrudGen extends CrudPlugin
             if ( $_REQUEST['step'] < 4 )
                 echo "<input type=\"submit\" value=\"{$lang['strnext']}\" /></form>";
         } else {
-            //Print warning and offers a link for creating tables
-            $this->print_no_tables();
+            $this->print_no_tables(); //Print warning and offers a link for creating tables
         }
 
         echo $this->include_js();
@@ -982,8 +998,9 @@ class CrudGen extends CrudPlugin
         $misc->printTrail( 'schema' );
         $misc->printTabs( 'schema', 'applications' );
 
-        if ( !empty( $msg ) )
+        if ( !empty( $msg ) ) {
             $misc->printMsg( $msg );
+        }
 
         $extra_vars = array( 'app_id' => $app_id );
         $columns = array(
@@ -1033,8 +1050,9 @@ class CrudGen extends CrudPlugin
             $this->build_nav_link( 'plugin.php', 'app_wizard', $this->lang['straddpages'], $extra_vars ),
         );
 
-        if ( $pages->_numOfRows > 0 )
+        if ( $pages->_numOfRows > 0 ) {
             $navlinks[] = $this->build_nav_link( 'plugin.php', 'generate_app', $this->lang['strgenerate'], $extra_vars );
+        }
 
         $misc->printNavLinks( $navlinks, 'list_pages' );
         $misc->printFooter();
@@ -1068,8 +1086,9 @@ class CrudGen extends CrudPlugin
         $misc->printTitle( $app->name );
 
 
-        if ( !empty( $msg ) )
+        if ( !empty( $msg ) ) {
             $misc->printMsg( $msg );
+        }
 
         echo "\n<form name=\"editpageform\" method=\"post\" action=\"\">";
         echo "\n<table>\n\t<tr><th class=\"data\">{$this->lang['strpageinfo']}</th></tr>\n\t<tr><td>";
@@ -1077,20 +1096,22 @@ class CrudGen extends CrudPlugin
         echo "<td class=\"data required\">" . $page->getTable() . "</td></tr>";
         echo "\n\t<tr>\n\t<th class=\"data left\"> {$this->lang['stroperation']}</th>";
         echo "<td class=\"data\">";
+
         switch ( $page->operation ) {
-        case "create":
-            echo $this->lang['strcreate'];
-            break;
-        case "update":
-            echo $this->lang['strupdate'];
-            break;
-        case "report":
-            echo $this->lang['strreport'];
-            break;
-        case "delete":
-            echo $this->lang['strdelete'];
-            break;
+            case "create":
+                echo $this->lang['strcreate'];
+                break;
+            case "update":
+                echo $this->lang['strupdate'];
+                break;
+            case "report":
+                echo $this->lang['strreport'];
+                break;
+            case "delete":
+                echo $this->lang['strdelete'];
+                break;
         }
+
         echo "</td></tr>";
         echo "<tr><th class=\"data left required\"> {$this->lang['strpagetitle']}</th>";
         echo "<td class=\"data\"><input type=\"text\" name=\"page_title\" maxlength=\"255\" value=\"{$_POST['page_title']}\"  size=\"33\"  /></td></tr>";
@@ -1100,8 +1121,11 @@ class CrudGen extends CrudPlugin
         echo "\"  size=\"33\" /></td></tr>";
         echo "<tr><th class=\"data left\">{$this->lang['strpagemainmenu']}</th>";
         echo "<td class=\"data\"><input type=\"checkbox\" name=\"on_main_menu\" id=\"on_main_menu\" value=\"selected\"";
-        if ( isset( $_POST['on_main_menu'] ) )
+
+        if ( isset( $_POST['on_main_menu'] ) ) {
             echo " checked=\"checked\"";
+        }
+
         echo "/>&nbsp;&nbsp;<label for=\"on_main_menu\">{$this->lang['strpageonmainmenu']}</label></td></tr>";
         echo "<tr><th class=\"data left\">{$this->lang['strdescr']}</th>";
         echo "<td class=\"data\"><textarea name=\"page_descr\" rows=\"3\" cols=\"33\" style=\"overflow:auto;\">{$_POST["page_descr"]}</textarea></td></tr>";
@@ -1123,24 +1147,23 @@ class CrudGen extends CrudPlugin
 
         foreach ( $page->fields as $field ) {
             $fk_table = $field->getFkTables( $app->getDBName(), $app->getSchema(), $page->getTable() );
+
             //Prints field data
             echo "<tr><th class=\"data left\">{$field->getName()}</th>";
             echo "<td><input type=\"text\" name=\"display[" . $field->getName() . "]\" maxlength=\"255\" value=\"";
 
             $displayName = $field->getDisplayName();
 
-            if
-            ( empty( $displayName ) )
+            if ( empty( $displayName ) ) {
                 $displayName = $field->getName();
+            }
 
             echo isset( $_POST['display'][$field->getName()] ) ? $_POST['display'][$field->getName()] : $displayName;
             echo "\"  /></td>";
             echo "<td><select name=\"order[" . $field->getName() . "]\">";
 
-            if ( isset( $_POST['order'][$field->getName()] ) )
-                $this->printOptionsField( $page, $_POST['order'][$field->getName()] );
-            else
-                $this->printOptionsField( $page, $field->getOrder() );
+            $selectedFields = isset($_POST['order'][$field->getName()]) ? $_POST['order'][$field->getName()] :  $field->getOrder();
+            $this->printOptionsField( $page, $selectedFields );
 
             echo "</select></td>";
 
@@ -1152,7 +1175,7 @@ class CrudGen extends CrudPlugin
                 $nn = false;
                 while ( !$attrs->EOF ) {
                     if ( ( $attrs->fields['attnotnull'] == 't' ) && ( $attrs->fields['attname'] == $field->getName() ) &&
-                        ( $attrs->fields['attname'] != Generator::getPK( $app->getDBName(), $page->getTable() ) ) ) {
+                        ( $attrs->fields['attname'] != CodeGenerator::getPK( $app->getDBName(), $page->getTable() ) ) ) {
                         echo " checked=\"checked\" disabled=\"disabled\" />";
                         echo "<input type=\"hidden\" name=\"show[{$field->getName()}]\" value=\"selected\"";
                         $nn = true;
@@ -1197,9 +1220,9 @@ class CrudGen extends CrudPlugin
                 }
                 echo "</select>";
                 echo "\n<input type=\"hidden\" name=\"fk_table[{$field->getName()}]\" value=\"{$fk_table}\"/>\n ";
-            }
-            else
+            } else {
                 echo $this->lang['strnone'];
+            }
             echo "</td></tr>";
         }
         echo "<tr><td colspan=\"2\"><p>{$lang['strshow']} ";
@@ -1214,14 +1237,16 @@ class CrudGen extends CrudPlugin
         echo "\n\t<input type=\"submit\" name=\"cancel\" value=\"{$lang['strcancel']}\" />";
         echo "</form>";
         echo $this->include_js();
+
         $misc->printFooter();
     }
 
 
     function update_page()
     {
-        if ( !empty( $_REQUEST['cancel'] ) )
+        if ( !empty( $_REQUEST['cancel'] ) ) {
             return $this->list_pages();
+        }
 
         $page = new Page();
 
@@ -1234,9 +1259,8 @@ class CrudGen extends CrudPlugin
 
         $page->setInMainMenu( false );
 
-        if ( isset( $_POST['on_main_menu'] ) ) {
-            if ( $_POST['on_main_menu'] == "selected" )
-                $page->setInMainMenu( true );
+        if ( isset( $_POST['on_main_menu'] ) && $_POST['on_main_menu'] == "selected" ) {
+            $page->setInMainMenu( true );
         }
 
         $validated = $page->validate( $this->lang );
@@ -1250,7 +1274,6 @@ class CrudGen extends CrudPlugin
                 $this->edit_page( $this->lang['strnodisplaycolumns'] );
                 return;
             }
-
 
             if ( $app->isUniqueFilename( $_REQUEST['page_id'], $page->getFilename() ) ) {
 
@@ -1273,9 +1296,8 @@ class CrudGen extends CrudPlugin
                     $field->setOrder( $_POST["order"][$field->getName()] );
                     $field->setOnPage( false );
 
-                    if ( isset( $_POST["show"][$field->getName()] ) ) {
-                        if ( $_POST["show"][$field->getName()] == "selected" )
-                            $field->setOnPage( true );
+                    if ( isset( $_POST["show"][$field->getName()] ) && $_POST["show"][$field->getName()] == "selected" ) {
+                        $field->setOnPage( true );
                     }
 
                     //Checks if it is a FK and adds FK data
@@ -1317,8 +1339,9 @@ class CrudGen extends CrudPlugin
         global $misc, $lang;
 
 
-        if ( !empty( $_REQUEST['cancel'] ) )
+        if ( !empty( $_REQUEST['cancel'] ) ) {
             return $this->list_pages();
+        }
 
         if ( !isset( $_REQUEST["page_id"] ) && !isset( $_REQUEST['ma'] ) ) {
             $this->list_pages( $this->lang['strselpagetodelete'] );
@@ -1394,15 +1417,16 @@ class CrudGen extends CrudPlugin
 
         if ( !$download_files ) {
 
-            $themes = Generator::getThemes();
+            $themes = CodeGenerator::getThemes();
             $misc->printHeader( $lang['strdatabase'] );
             $misc->printBody();
             $misc->printTrail( 'schema' );
             $misc->printTabs( 'schema', 'applications' );
             $misc->printTitle( $this->lang['strgenerating'] . ' ' . $app->name );
 
-            if ( !empty( $msg ) )
+            if ( !empty( $msg ) ) {
                 $misc->printMsg( $msg );
+            }
 
             echo "<form id=\"genops\" method=\"post\" action=\"\">\n";
             echo "\n\t\t<input type=\"hidden\" name=\"action\" value=\"generate_app\" />";
@@ -1450,7 +1474,7 @@ class CrudGen extends CrudPlugin
     {
         global $misc;
 
-        $applications = Application::getApps( $_REQUEST['database'], $_REQUEST['schema'] );
+        $applications = Application::getAll( $_REQUEST['database'], $_REQUEST['schema'] );
         $reqvars = $misc->getRequestVars( 'crudgen' );
 
         $url = url(
@@ -1469,6 +1493,10 @@ class CrudGen extends CrudPlugin
             'toolTip' => field( 'relcomment' ),
             'action' => $url,
         );
+
+        if(!$applications->_numOfRows) {
+            $applications = array();
+        }
 
         $misc->printTreeXML( $applications, $attrs );
         exit;
@@ -1507,21 +1535,24 @@ class CrudGen extends CrudPlugin
         // Check to see if the ppa database exists
         $rs = $data->getDatabase( "phppgadmin" );
 
-        if ( $rs->recordCount() != 1 )
+        if ( $rs->recordCount() != 1 ) {
             return false;
-        else {
+        } else {
             // Create a new database access object.
             $driver = $misc->getDatabaseAccessor( "phppgadmin" );
             $schemas = $driver->getSchemas();
 
             // Reports database should have been created in public schema
-            if ( count( $schemas ) == 0 )
+            if ( count( $schemas ) == 0 ) {
                 return false;
+            }
 
             //Checks for appgen in the schemas array
-            foreach ( $schemas as $i )
-                if ( $i["nspname"] == 'crudgen' )
+            foreach ( $schemas as $i ) {
+                if ( $i["nspname"] == 'crudgen' ) {
                     return true;
+                }
+            }
         }
 
 
@@ -1571,9 +1602,4 @@ class CrudGen extends CrudPlugin
 
         $misc->printNavLinks( $navlinks, 'create_app' );
     }
-
-
 }
-
-
-?>

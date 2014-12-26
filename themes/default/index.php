@@ -5,7 +5,7 @@
         <title><?php printTitle();?></title>
         <link href="css/reset.css" rel="stylesheet" type="text/css" />
         <link href="css/style.css" rel="stylesheet" type="text/css" />
-        <link href="css/smoothness/jquery-ui-1.9.1.custom.min.css" rel="stylesheet" type="text/css" />
+        <link href="css/jquery-ui.min.css" rel="stylesheet" type="text/css" />
     </head>
     <body>
         <div id="header">
@@ -42,7 +42,9 @@
         </div>
         <?php endif; ?>
         <div id="footer">
-            <div class="generated">Generated with CrudGen.</div>
+            <div class="generated">
+                Generated with <a href="https://github.com/Skatox/crudgen" target="_blank">CrudGen</a>.
+            </div>
             <div class="xhtml-valid">
                 <a href="http://validator.w3.org/check?uri=referer">
                     <img src="img/valid-xhtml10.png" alt="Valid XHTML 1.0 Transitional"/>
@@ -50,8 +52,8 @@
             </div>
         </div>
         <?php printMessages() ?>
-        <script type="text/javascript" src="js/jquery-1.8.0.min.js"></script>
-        <script type="text/javascript" src="js/jquery-ui-1.9.1.custom.min.js"></script>
+        <script type="text/javascript" src="js/jquery-1.11.2.min.js"></script>
+        <script type="text/javascript" src="js/jquery-ui.min.js"></script>
         <script type="text/javascript" src="js/jquery.validate.min.js"></script>
         <script type="text/javascript" src="js/jscode.min.js"></script>
     </body>

@@ -2,8 +2,6 @@
 /**
  * Class for generating PGSQL (obsolete) code
  */
-require_once('./plugins/CrudGen/classes/Generator/CodeGen.php');
-
 class GenPsql extends CodeGen 
 {
 	public $lang;
